@@ -1,0 +1,18 @@
+HTTP/1.1 301 Moved Permanently
+Content-length: 184
+Age: 0
+Server: nginx/1.0.5
+Connection: Keep-Alive
+Location: http://www.foo.com/robots.txt
+Date: Thu, 24 Jul 2014 21:11:04 GMT
+Content-type: text/html
+X-wex-url: http://foo.com/robots.txt
+X-wex-request-url: http://foo.com/robots.txt
+
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body bgcolor="white">
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.0.5</center>
+</body>
+</html>

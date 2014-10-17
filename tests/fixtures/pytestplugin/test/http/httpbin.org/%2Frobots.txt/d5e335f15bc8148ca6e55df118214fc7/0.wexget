@@ -1,0 +1,12 @@
+HTTP/1.1 200 OK
+Content-length: 30
+Age: 0
+Server: gunicorn/18.0
+Connection: Keep-Alive
+Date: Wed, 25 Jun 2014 22:19:09 GMT
+Access-control-allow-origin: *
+Content-type: text/plain
+X-wextracto-url: http://httpbin.org/robots.txt
+
+User-agent: *
+Disallow: /deny

@@ -1,0 +1,4 @@
+[wex]
+example = testme:example
+.httpbin.org = testme:example_with_hostname_suffix
+nosuch = testme:nosuch

@@ -1,0 +1,47 @@
+Metadata-Version: 1.1
+Name: wextracto
+Version: 0.1.0
+Summary: Python Web Resource Data Extraction Library.
+Home-page: UNKNOWN
+Author: Giles Brown
+Author-email: gsbrown@ebay.com
+License: Apache 2.0
+Description: Wextracto: Simple Web Data Extraction
+        *************************************
+        
+        Wextracto is a framework for extracting data from web resources.
+        
+        Extraction is done by creating extractor callables.  Each extractor callable 
+        has the following signature:
+        
+        .. code-block:: python
+        
+            def extractor(src, **kw):
+                yield "something"
+        
+        
+        .. literalinclude:: example.py
+            :language: python
+        
+        
+        curl -s -D- http://httpbin.org/get?this=that | wex extract -e example:extractor
+        
+        
+        .. :changelog:
+        
+        Release History
+        ---------------
+        
+        0.1 (2014-06-18)
+        ++++++++++++++++++
+        
+        * Scavenging from the old wex.
+        
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: English
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.3

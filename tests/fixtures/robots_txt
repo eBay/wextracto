@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Type: text/plain
+X-wex-url: http://www.foo.com/robots.txt
+X-wex-request-url: http://www.foo.com/robots.txt
+
+# /robots.txt
+Sitemap: http://sitemap.foo.com/SiteMap/sitemap_index.xml.gz

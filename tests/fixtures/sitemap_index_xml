@@ -1,0 +1,18 @@
+HTTP/1.1 200 OK
+Last-Modified: Fri, 20 May 2011 03:27:29 GMT
+Content-Type: text/xml
+Connection: keep-alive
+X-wex-url: http://sitemap.foo.com/SiteMap/sitemap_index.xml.gz
+X-wex-request-url: http://sitemap.foo.com/SiteMap/sitemap_index.xml.gz
+
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<sitemap>
+<loc>sitemap_0.xml.gz</loc>
+<lastmod>2011-05-19</lastmod>
+</sitemap>
+<sitemap>
+<loc>sitemap_1.xml.gz</loc>
+<lastmod>2011-05-19</lastmod>
+</sitemap>
+</sitemapindex>
