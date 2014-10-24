@@ -1,7 +1,7 @@
 Wextracto: Web Data Extraction
 ==============================
 
-Wextracto is a framework for extracting data from web resources.
+Wextracto is a toolkit for command-line web data extraction.
 
 
 Installation
@@ -9,7 +9,7 @@ Installation
 
 .. code-block:: bash
 
-    $ pip install https://github.com/eBay/wextracto/archive/master.zip
+    $ pip install wextracto
 
 
 Running

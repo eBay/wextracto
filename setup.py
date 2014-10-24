@@ -12,7 +12,7 @@ setup(
     author='Giles Brown',
     author_email='gsbrown@ebay.com',
     url='https://github.com/eBay/wextracto',
-    download_url = 'https://github.com/eBay/wextracto/tarball/0.1',
+    download_url = 'https://github.com/eBay/wextracto/tarball/0.2',
     license='BSD',
     include_package_data=True,
     packages=['wex'],
@@ -30,14 +30,14 @@ setup(
         'publicsuffix',
     ],
     classifiers=(
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
     ),
     entry_points="""
         [console_scripts]
