@@ -1,6 +1,10 @@
-from __future__ import absolute_import
+from __future__ import unicode_literals, absolute_import, print_function
+from operator import methodcaller
 from lxml.etree import iterparse
-from urlparse import urljoin
+from codecs import getreader
+from six import PY2
+from six.moves.http_client import HTTPMessage
+from six.moves.urllib_parse import urljoin
 from wex.http import decode
 from wex.url import URL
 
@@ -11,7 +15,10 @@ def urls_from_robots_txt(src):
     if src_url.parsed.path != '/robots.txt':
         return
 
-    for line in src:
+    charset = src.headers.get_content_charset()
+    lines = getreader(charset or 'ISO-8859-1')(src)
+
+    for line in lines:
 
         content, _, comment = line.partition('#')
         field, _, value = content.partition(':')
@@ -26,7 +33,8 @@ def urls_from_robots_txt(src):
 def urls_from_sitemap(src):
 
     robots = URL(src.request_url).fragment.get('robots')
-    xml_in_subtype = 'xml' in src.headers.getsubtype().split('+')
+    content_subtype = src.headers.get_content_subtype()
+    xml_in_subtype = 'xml' in content_subtype.split('+')
     if not robots and not xml_in_subtype:
         return
 

@@ -8,6 +8,7 @@ They are used to to create `Response` objects using `Response.from_readable`.
 from __future__ import absolute_import, unicode_literals, print_function
 import os
 import tarfile
+from io import FileIO
 from threading import local
 from functools import partial as partial_
 from contextlib import closing
@@ -86,7 +87,7 @@ def save_readables(url, responses_dir, readables):
     for i, readable in enumerate(readables):
         basename = '{}{}'.format(i, EXT_WEXIN)
         path = os.path.join(url_dir, basename)
-        fp = open(path, 'w')
+        fp = FileIO(path, 'w')
         readable = TeeReadable(readable, fp)
         with closing(readable):
             yield readable
@@ -102,7 +103,7 @@ def readables_from_file_path(path):
         for filename in filenames:
             if filename.lower().endswith(EXT_WEXIN):
                 filepath = os.path.join(dirpath, filename)
-                yield Open(partial(open, filepath))
+                yield Open(partial(FileIO, filepath))
     if numdirs < 1:
         if path.endswith('.tar'):
             tf = tarfile.open(path, 'r')
@@ -110,7 +111,7 @@ def readables_from_file_path(path):
                 if ti.name.endswith(EXT_WEXIN):
                     yield Open(partial(tarfile_tarinfo_open, path, ti))
         else:
-            yield Open(partial(open, path))
+            yield Open(partial(FileIO, path))
 
 
 class TeeReadable(object):

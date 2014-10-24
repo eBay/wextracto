@@ -2,51 +2,63 @@
 
 from __future__ import absolute_import, unicode_literals, print_function
 import logging
+from functools import wraps
 from six.moves.urllib_parse import urlparse
 from pkg_resources import iter_entry_points
+from .value import yield_values
 
 
 OMITTED = object()
 
 
-class ChainedExtractor(object):
-    """ An extractor made from chaining extractors """
+def chained(*extractors):
+    """ Creates an extractor Chains extractors functions to make a new one. """
+    return ChainedExtractors(extractors)
+
+
+class ChainedExtractors(object):
 
     def __init__(self, extractors):
         self.extractors = extractors
 
-    def __call__(self, src, **kw):
+    def __call__(self, arg0, *args, **kw):
+        seek = getattr(arg0, 'seek', None)
         for extractor in self.extractors:
-            try:
-                if hasattr(src, 'seek'):
-                    src.seek(0)
-                for item in extractor(src):
-                    yield item
-            except Exception as exc:
-                yield (exc,)
+            if seek:
+                seek(0)
+            values = yield_values(extractor, arg0, *args, **kw)
+            for value in values:
+                yield value
 
 
-def chained(extractors):
-    return ChainedExtractor(extractors)
+def labelled(*literals_or_callables):
+    """ Wraps an extractor so that the extracted values are labelled. """
+
+    def call(label, arg0):
+        return (label(arg0) if hasattr(label, '__call__') else label)
+
+    def labelled_extractor_decorator(extractor):
+        @wraps(extractor)
+        def labelled_extractor_wrapper(arg0, *args, **kw):
+
+            labels = [call(label, arg0) for label in literals_or_callables]
+            if not all(labels):
+                # one or more missing labels so don't yield
+                return
+
+            for value in yield_values(extractor, arg0, *args, **kw):
+                yield value.label(*labels)
+
+        return labelled_extractor_wrapper
+
+    return labelled_extractor_decorator
 
 
-def prefixed(extractor, *prefixes):
-
-    def _prefixed(src, **kw):
-        prefix = tuple(p(src) if hasattr(p, '__call__') else p for p in prefixes)
-        if not all(prefix):
-            return
-        try:
-            for item in extractor(src, **kw):
-                yield prefix + item
-        except Exception as exc:
-            yield prefix + (exc,)
-
-    return _prefixed
-
+def attributes(**kw):
+    """ Creates a composite extractor from labelled extractors. """
+    return Attributes(**kw)
 
 class Attributes(object):
-    """Extractor assigning prefix names to sub-extractors."""
 
     def __init__(self, **kw):
         self.extractors = {}
@@ -56,24 +68,10 @@ class Attributes(object):
     def __len__(self):
         return len(self.extractors)
 
-    def __call__(self, *args, **kw):
+    def __call__(self, *args, **kwargs):
         for name, extractor in self.extractors.items():
-
-            try:
-                val = extractor(*args, **kw)
-            except Exception as exc:
-                logging.getLogger(__name__).exception("WHOOPS %r %r", name, extractor)
-                yield name, exc
-                continue
-
-            if not hasattr(val, '__iter__') or isinstance(val, (list, tuple)):
-                yield name, val
-            else:
-                try:
-                    for value in val:
-                        yield name, value
-                except Exception as exc:
-                    yield name, exc
+            for value in yield_values(extractor, *args, **kwargs):
+                yield value.label(name)
 
     def add(self, extractor_or_name, extractor=OMITTED):
         """ Add attribute function decorator/add method. """
@@ -90,6 +88,8 @@ class Attributes(object):
         return extractor
 
 
+
+
 class ExtractorFromEntryPoints(object):
     """ An extractor that loads sub-extractors from entry points. 
 
@@ -101,12 +101,13 @@ class ExtractorFromEntryPoints(object):
         self.extractors = {}
         self.excluded = excluded
 
-    def __call__(self, src):
-        hostname = urlparse(src.url).hostname if src.url else None
+    def __call__(self, arg0, *args, **kw):
+        url = getattr(arg0, 'url', None)
+        hostname = urlparse(url).hostname if url else None
         if hostname not in self.extractors:
             self.extractors[hostname] = self.extractor_for_hostname(hostname)
         extractor = self.extractors[hostname]
-        return extractor(src)
+        return extractor(arg0, *args, **kw)
 
     def extractor_for_hostname(self, hostname):
         extractors = []
@@ -126,4 +127,4 @@ class ExtractorFromEntryPoints(object):
                                  entry_point_group, entry_point.name)
                 continue
             extractors.append(extractor)
-        return chained(extractors)
+        return chained(*extractors)

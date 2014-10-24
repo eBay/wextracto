@@ -6,7 +6,7 @@ from pkg_resources import resource_filename
 from .readable import readables_from_paths
 from .processpool import do
 from .extractor import ExtractorFromEntryPoints
-from .output import ExtractToStdout, ExtractToStdoutSavingOutput
+from . import output
 
 
 default_logging_conf = resource_filename(__name__, 'logging.conf')
@@ -55,6 +55,15 @@ argparser.add_argument(
 )
 
 
+class WriteExtracted(object):
+
+    def __init__(self, write, extract):
+        self.write = write
+        self.extract = extract
+
+    def __call__(self, readable):
+        return self.write(self.extract, readable)
+
 
 def main():
     """ The main 'wex' command """
@@ -62,11 +71,11 @@ def main():
     import logging.config ; logging.config.fileConfig(default_logging_conf)
 
     args = argparser.parse_args()
-    extractor = ExtractorFromEntryPoints(args.excluded_entry_points)
+    extract = ExtractorFromEntryPoints(args.excluded_entry_points)
     if args.save:
-        extract = ExtractToStdoutSavingOutput(extractor, args.responses_dir)
+        func = WriteExtracted(output.write_values_to_stdout_and_dir, extract)
     else:
-        extract = ExtractToStdout(extractor)
+        func = WriteExtracted(output.write_values_to_stdout, extract)
 
     readables = readables_from_paths(args.paths, args.save, args.responses_dir)
-    do(extract, readables, pool_size=args.process_pool)
+    do(func, readables, pool_size=args.process_pool)

@@ -60,7 +60,7 @@ def test_method_without_scheme():
 def test_url_get():
     responses = list(URL('http://httpbin.org/robots.txt').get())
     assert len(responses) == 1
-    assert responses[0].readline(2**16) == 'HTTP/1.1 200 OK\r\n'
+    assert responses[0].readline(2**16) == b'HTTP/1.1 200 OK\r\n'
 
 
 def test_url_get_missing_recipe():

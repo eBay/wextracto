@@ -2,12 +2,11 @@
 
 from __future__ import absolute_import, unicode_literals, print_function
 import logging
-from urllib import quote, unquote
-from six.moves.urllib_parse import urljoin
+from six.moves.urllib_parse import urljoin, quote, unquote
 from functools import partial, wraps
 from operator import is_, methodcaller
 
-from six.moves import filter
+from six.moves import filter, reduce
 
 from lxml.etree import XPath, _ElementTree, Element
 from lxml.cssselect import CSSSelector
@@ -48,7 +47,7 @@ class WrapsShim(object):
 def parse(src):
     if not hasattr(src, 'read'):
         return src
-    charset = src.headers.getparam('charset')
+    charset = src.headers.get_content_charset()
     etree = _ElementTree()
     # if charset is not specified in the Content-Type, this will be
     # None ; encoding=None produces default (ISO 8859-1) behavior.
@@ -84,7 +83,7 @@ def xpath(expression, namespaces=default_namespaces):
     return parse | XPath(expression, namespaces=namespaces)
 
 def maybe_list(f):
-    @wraps(WrapsShim(f))
+    #@wraps(WrapsShim(f))
     def wrapper(src, *args, **kwargs):
         cache = {}
         if isinstance(src, list):
@@ -100,7 +99,7 @@ def attrib(name, default=SKIP):
 
 
 def base_url_join(f):
-    @wraps(WrapsShim(f))
+    #@wraps(WrapsShim(f))
     def wrapper(src, *args, **kwargs):
         roottree = src.getroottree() if hasattr(src, 'getroottree') else src
         root = roottree.getroot()

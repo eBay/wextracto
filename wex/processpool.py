@@ -1,7 +1,7 @@
 """Wrapper around multiprocessing.Pool to perform extraction"""
 
 import logging
-from itertools import imap
+from six.moves import map
 from functools import wraps
 from contextlib import contextmanager
 from multiprocessing import Pool
@@ -107,7 +107,7 @@ def do_in_this_process(work, initializer, initargs):
         initializer(*initargs)
     while work:
         func, iterable = work.pop()
-        for exc in imap(func, iterable):
+        for exc in map(func, iterable):
             yield exc
 
 

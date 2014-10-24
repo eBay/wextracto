@@ -1,9 +1,10 @@
+import sys
 import re
 from .composed import composable
 
 for name in dir(re):
     if name.isupper() and not name.startswith('_'):
-        exec "{} = getattr(re, name)".format(name)
+        setattr(sys.modules[__name__], name, getattr(re, name))
 
 
 def group(pattern, group=1, flags=0):

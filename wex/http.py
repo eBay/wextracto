@@ -64,10 +64,10 @@ def readable_from_response(response, url, decode_content=True):
 
 
 def decode(src):
-    content_encoding = src.headers.getheader('content-encoding', '')
-    has_gzip_magic = (src.headers.getheader('X-wex-has-gzip-magic', '0') == '1')
+    content_encoding = src.headers.get('content-encoding', '')
+    has_gzip_magic = (src.headers.get('X-wex-has-gzip-magic', '0') == '1')
     gzip = (
-        src.headers.getsubtype() == 'x-gzip' or
+        src.headers.get_content_subtype() == 'x-gzip' or
         content_encoding == 'x-gzip' or
         (content_encoding == 'gzip' and has_gzip_magic)
     )

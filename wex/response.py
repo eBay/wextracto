@@ -1,13 +1,27 @@
+from __future__ import unicode_literals, print_function, absolute_import
 from tempfile import TemporaryFile
 from shutil import copyfileobj
 from io import BytesIO
+from six import PY2
 from six.moves.urllib.response import addinfourl
-from six.moves.http_client import BadStatusLine, HTTPMessage
-from .cache import ComposeCache
+from six.moves.http_client import BadStatusLine
+from .cache import Cache
+from .value import yield_values
 
 
 DEFAULT_READ_SIZE = 2**16  # 64K
 MAX_IN_MEMORY_SIZE = 2**29      # 512M
+
+if PY2:
+
+    from httplib import HTTPMessage
+
+    def parse_headers(fp):
+        return HTTPMessage(fp, 0)
+
+else:
+
+    from http.client import parse_headers
 
 
 class Response(addinfourl):
@@ -32,30 +46,30 @@ class Response(addinfourl):
         return self.fp
 
     @classmethod
-    def items_from_readable(cls, extractor, readable):
-        """ Yields items extracted from a 'readable'. """
+    def values_from_readable(cls, extract, readable):
+        """ Yields values extracted from 'readable' using 'extract'. """
         response = cls.from_readable(readable)
-        with ComposeCache():
-            for item in extractor(response):
-                yield item
+        with Cache():
+            for value in yield_values(extract, response):
+                yield value
 
     @classmethod
     def from_readable(cls, readable, **kw):
         status_line = readable.readline()
         protocol, version, code, reason = cls.parse_status_line(status_line)
-        headers = HTTPMessage(readable, 0)
+        headers = parse_headers(readable)
         content = cls.content_file(readable, headers)
-        return Response(content, headers, protocol=protocol,
+        return Response(content, headers, protocol=protocol.decode('UTF-8'),
                                           version=version,
                                           code=code,
-                                          reason=reason,
+                                          reason=reason.decode('UTF-8'),
                                           **kw)
 
     @staticmethod
     def parse_status_line(status_line, field_defaults=['']*3):
         """ Parses HTTP style status line. """
 
-        fields = status_line.rstrip('\r\n').split(None, 2) + field_defaults
+        fields = status_line.rstrip(b'\r\n').split(None, 2) + field_defaults
         protocol_version, code, reason = fields[:3]
 
         # status code is always an integer
@@ -63,11 +77,11 @@ class Response(addinfourl):
             raise BadStatusLine(status_line)
         code = int(code)
 
-        protocol, _, version = protocol_version.partition('/')
+        protocol, _, version = protocol_version.partition(b'/')
 
         # version is a tuple of integers
         try:
-            version = tuple(map(int, version.split('.')))
+            version = tuple(map(int, version.split(b'.')))
         except ValueError:
             raise BadStatusLine(status_line)
 

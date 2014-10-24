@@ -32,25 +32,25 @@ def test_do_in_pool():
     t = tempfile.NamedTemporaryFile()
     iterable = ((t.name, i) for i in range(3))
     processpool.do(do_func, iterable)
-    assert set(t.read().split()) == set(['0', '1', '2'])
+    assert set(t.read().split()) == set([b'0', b'1', b'2'])
 
 
 def test_do_in_this_process():
     t = tempfile.NamedTemporaryFile()
     processpool.do(do_func, ((t.name, i) for i in range(3)), pool_size=1)
-    assert set(t.read().split()) == set(['0', '1', '2'])
+    assert set(t.read().split()) == set([b'0', b'1', b'2'])
 
 
 def test_more_work_in_this_process():
     t = tempfile.NamedTemporaryFile()
     processpool.do(do_func, ((t.name, i) for i in (7, 8)), pool_size=1)
-    assert set(t.read().split()) == set(['7', '8', 'other=a', 'other=b'])
+    assert set(t.read().split()) == set([b'7', b'8', b'other=a', b'other=b'])
 
 
 def test_more_work_in_pool():
     t = tempfile.NamedTemporaryFile()
     processpool.do(do_func, ((t.name, i) for i in (7, 8)))
-    assert set(t.read().split()) == set(['7', '8', 'other=a', 'other=b'])
+    assert set(t.read().split()) == set([b'7', b'8', b'other=a', b'other=b'])
 
 
 class MyKindOfError(Exception):
@@ -66,7 +66,7 @@ def test_error_during_iteration_in_this_process():
     iterable = error_during_iteration()
     with pytest.raises(MyKindOfError):
         processpool.do(do_func, iterable, pool_size=1)
-    assert set(t.read().split()) == set(['1', '2'])
+    assert set(t.read().split()) == set([b'1', b'2'])
 
 
 def test_error_during_iteration():
@@ -82,7 +82,7 @@ def test_error_during_iteration():
     iterable = error_during_iteration()
     with pytest.raises(MyKindOfError):
         processpool.do(do_func, iterable)
-    assert set(t.read().split()) == set(['1', '2'])
+    assert set(t.read().split()) == set([b'1', b'2'])
 
 
 def test_do_func_raises_ioerror_exc():
@@ -150,4 +150,4 @@ def test_initializer_in_this_process():
         initializer=initializer,
         initargs=('foo',)
     )
-    assert set(t.read().split()) == set(['foo:7', 'foo:8'])
+    assert set(t.read().split()) == set([b'foo:7', b'foo:8'])

@@ -2,29 +2,22 @@ import os
 import errno
 import json
 from operator import attrgetter, methodcaller
-from itertools import ifilter, ifilterfalse
 from hashlib import md5
 from contextlib import contextmanager
-
-import six
-from six.moves.urllib_parse import urlparse, urlunparse, parse_qs, parse_qsl, urlencode, unquote, quote
+from six import text_type, string_types, next
+from six.moves import filter, filterfalse
+from six.moves.urllib_parse import (urlparse,
+                                    urlunparse,
+                                    parse_qs,
+                                    parse_qsl,
+                                    urlencode,
+                                    unquote,
+                                    quote)
 from pkg_resources import iter_entry_points
 from publicsuffix import PublicSuffixList
 
 from .composed import composable
-
-encoder = json.JSONEncoder(
-    skipkeys=False,
-    ensure_ascii=False,
-    check_circular=True,
-    allow_nan=True,
-    indent=None,
-    separators=(',', ':'),
-    encoding='utf-8',
-    default=None,
-    sort_keys=True,
-)
-json_encode = encoder.encode
+from .value import json_encode
 
 
 DEFAULT_METHOD = 'get'
@@ -62,14 +55,14 @@ class Method(object):
         """ Get responses for 'url'. """
         entry_points = iter_entry_points(self.group, self.name)
         try:
-            ep = six.next(entry_points)
+            ep = next(entry_points)
         except StopIteration:
             raise ValueError("Missing method '%s' in '%s'" % (self.name, self.group))
         method = ep.load()
         return method(url, self, **kw)
 
 
-class URL(six.text_type):
+class URL(text_type):
     """ URL objects. """
 
     def __new__(cls, urlstring):
@@ -91,7 +84,7 @@ class URL(six.text_type):
 
         try:
             return json.loads(fragment)
-        except:
+        except ValueError:
             pass
         return {}
 
@@ -109,7 +102,7 @@ class URL(six.text_type):
 
         method = self.fragment.get('method', DEFAULT_METHOD)
 
-        if isinstance(method, six.string_types):
+        if isinstance(method, string_types):
             return Method(self.parsed.scheme, method, {})
 
         try:
@@ -172,7 +165,7 @@ def param(name, default=[]):
 def filter_params(*names, **kw):
 
     names = set(names)
-    filter = kw.get('filter', ifilter)
+    filter_func = kw.get('filter_func', filter)
 
     def pred(param):
         return param[0] in names
@@ -180,14 +173,14 @@ def filter_params(*names, **kw):
     @composable
     def filter_params(obj):
         parsed = parse_url(obj)
-        qsl = list(filter(pred, parse_qsl(parsed.query)))
+        qsl = list(filter_func(pred, parse_qsl(parsed.query)))
         return urlunparse(parsed._replace(query=urlencode(qsl)))
 
     return filter_params
 
 
 def remove_params(*names):
-    return filter_params(*names, filter=ifilterfalse)
+    return filter_params(*names, filter_func=filterfalse)
 
 
 def whitelist_params(*names):

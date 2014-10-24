@@ -6,10 +6,12 @@ from __future__ import absolute_import, unicode_literals, print_function  # prag
 # function level imports and pragmas.
 #
 
+import io
+import codecs
 import pytest                                            # pragma: no cover
 
-TAB = b'\t'  # pragma: no cover
-LF = b'\n'  # pragma: no cover
+TAB = '\t'  # pragma: no cover
+LF = '\n'  # pragma: no cover
 MISSING = object()  # pragma: no cover
 
 def pytest_collect_file(parent, path):                   # pragma: no cover
@@ -30,7 +32,7 @@ class WexinFile(pytest.File):                        # pragma: no cover
         from .output import EXT_WEXOUT
         basename = self.fspath.purebasename + EXT_WEXOUT
         wexout = self.fspath.dirpath().join(basename)
-        items = (line.rstrip(LF).split(TAB) for line in wexout.open())
+        items = (line.rstrip(LF).split(TAB) for line in codecs.open(wexout.strpath, encoding='UTF-8'))
         keys = set()
         for key, items_for_key in groupby(items, key=lambda item: tuple(item[:-1])):
             values = set()
@@ -47,15 +49,18 @@ class WexinFile(pytest.File):                        # pragma: no cover
     def extract(self):
         from .extractor import ExtractorFromEntryPoints
         from .response import Response
-        from .output import encoder
-        extracted = {}
-        extractor = ExtractorFromEntryPoints()
-        with self.fspath.open() as readable:
-            for item in Response.items_from_readable(extractor, readable):
-                key = item[:-1]
-                value = encoder.encode(item[-1])
-                extracted.setdefault(key, set()).add(value)
-        return extracted
+        from .value import json_encode
+        #from .output import encoder
+        values = {}
+        extract = ExtractorFromEntryPoints()
+        with self.fspath.open('rb') as readable:
+            for value in Response.values_from_readable(extract, readable):
+                value_set = values.setdefault(value.labels, set())
+                try:
+                    value_set.add(json_encode(value.value))
+                except TypeError:
+                    pass
+        return values
 
 
 class WextractoItem(pytest.Item):                        # pragma: no cover

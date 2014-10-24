@@ -1,19 +1,21 @@
 import pytest
 from six.moves.http_client import BadStatusLine
 from six import BytesIO
+import codecs
 from wex.response import Response, DEFAULT_READ_SIZE
 
+utf8_reader = codecs.getreader('UTF-8')
 
-with_content_length = b'''{protocol_version} {code} {reason}\r
+with_content_length = '''{protocol_version} {code} {reason}\r
 Content-length: {content_length}\r
 \r
 {content}'''
 
-without_content_length = b'''HTTP/1.1 200 OK\r
+without_content_length = '''HTTP/1.1 200 OK\r
 \r
 {content}'''
 
-content = b'HELLO'
+content = 'HELLO'
 
 
 def build_response(content, response=with_content_length, **kw):
@@ -30,13 +32,13 @@ def build_response(content, response=with_content_length, **kw):
         if k in kw:
             fmt[k] = kw.pop(k)
 
-    response_bytes = response.format(**fmt)
+    response_bytes = response.format(**fmt).encode('utf-8')
     return Response.from_readable(BytesIO(response_bytes), **kw)
 
 
 def test_read():
     response = build_response(content)
-    assert response.read() == content
+    assert utf8_reader(response).read() == content
     assert response.geturl() == None
     # the other attributes don't have accessors
     assert response.protocol == 'HTTP'
@@ -49,9 +51,9 @@ def test_read():
 
 def test_read_seek_read():
     response = build_response(content)
-    assert response.read() == content
-    response.seek(0) == content
-    assert response.read() == content
+    assert utf8_reader(response).read() == content
+    response.seek(0)
+    assert utf8_reader(response).read() == content
 
 
 def test_unexpected_keyword_argument():
@@ -61,23 +63,23 @@ def test_unexpected_keyword_argument():
 
 def test_read_no_content_length():
     response = build_response(content, without_content_length)
-    assert response.read() == content
+    assert utf8_reader(response).read() == content
 
 
 def test_read_negative_content_length():
     response = build_response(content, content_length='-1')
-    assert response.read() == content
+    assert utf8_reader(response).read() == content
 
 
 def test_read_non_integer_content_length():
     response = build_response(content, content_length='X')
-    assert response.read() == content
+    assert utf8_reader(response).read() == content
 
 
 def test_read_large_content():
     large_content = 'X' * DEFAULT_READ_SIZE * 2
     response = build_response(large_content, without_content_length)
-    assert response.read() == large_content
+    assert utf8_reader(response).read() == large_content
 
 
 def test_read_non_integer_code():
@@ -90,9 +92,9 @@ def test_read_bad_protocol_version():
         build_response(content, protocol_version='HTTP/X')
 
 
-def test_items_from_readable():
+def test_extract_from_readable():
     readable = BytesIO(b'FTP/1.0 200 OK\r\n\r\nhello')
-    def extractor(src):
+    def extract(src):
         yield (src.read(),)
-    items = list(Response.items_from_readable(extractor, readable))
-    assert items == [('hello',)]
+    values = list(Response.values_from_readable(extract, readable))
+    assert values == [(b'hello',)]

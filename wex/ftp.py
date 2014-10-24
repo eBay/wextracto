@@ -37,7 +37,7 @@ class RETRReadable(object):
         self.ftp = ftp
         self.ftp.voidcmd('TYPE I')
         self.conn = ftp.transfercmd('RETR {}'.format(basename))
-        self.fp = self.conn.makefile('r')
+        self.fp = self.conn.makefile('rb')
 
     @close_on_empty
     def read(self, *args):

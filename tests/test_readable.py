@@ -1,5 +1,6 @@
 import pickle
 import pytest
+from io import FileIO
 from pkg_resources import resource_filename
 from six import BytesIO, next
 from wex.response import DEFAULT_READ_SIZE
@@ -26,7 +27,7 @@ def test_readables_from_paths_url():
     data = []
     for readable in readables_from_paths(['http://httpbin.org/headers']):
         data.append(read_chunks(readable))
-    assert data[0].startswith('HTTP/1.1 200 OK')
+    assert data[0].startswith(b'HTTP/1.1 200 OK')
 
 
 def test_readables_from_paths_dir(tmpdir):
@@ -37,7 +38,7 @@ def test_readables_from_paths_dir(tmpdir):
     data = []
     for readable in readables_from_paths([tmpdir.strpath]):
         data.append(read_chunks(readable))
-    assert data == ['foo']
+    assert data == [b'foo']
 
 
 def test_readables_from_paths_file(tmpdir):
@@ -47,7 +48,7 @@ def test_readables_from_paths_file(tmpdir):
     data = []
     for readable in readables_from_paths([wexin.strpath]):
         data.append(read_chunks(readable))
-    assert data == ['foo']
+    assert data == [b'foo']
 
 
 def test_chained_readable():
@@ -86,14 +87,14 @@ bar'''
 
 
 def test_chained_readable_exhausted():
-    reader = ChainedReadable(BytesIO(''))
+    reader = ChainedReadable(BytesIO())
     assert reader.readline() == b''
     assert reader.readline() == b''
 
 
 def test_tee_readable(tmpdir):
     tmp = tmpdir.join('tmp')
-    with open(tmp.strpath, 'w') as fp:
+    with FileIO(tmp.strpath, 'w') as fp:
         reader = TeeReadable(BytesIO(b'abc'), fp)
         assert reader.read(10), b'abc'
         assert reader.name == tmp.strpath
@@ -101,7 +102,7 @@ def test_tee_readable(tmpdir):
 
 def test_tee_readable_readline(tmpdir):
     tmp = tmpdir.join('tmp')
-    with open(tmp.strpath, 'w') as fp:
+    with FileIO(tmp.strpath, 'w') as fp:
         reader = TeeReadable(BytesIO(b'abc\n'), fp)
         assert reader.readline(10), b'abc\n'
 
@@ -111,7 +112,7 @@ def test_readables_from_file_path_where_path_is_tarfile():
     readables = readables_from_file_path(path)
     r0 = next(readables)
     r0p = pickle.loads(pickle.dumps(r0))
-    assert r0p.readline() == 'HTTP/1.1 200 OK\n'
+    assert r0p.readline() == b'HTTP/1.1 200 OK\n'
 
 
 def test_partial_repr():

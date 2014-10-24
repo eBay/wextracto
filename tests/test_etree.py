@@ -2,7 +2,7 @@ from __future__ import unicode_literals, print_function
 from six import BytesIO
 from lxml import html
 from operator import itemgetter
-from wex.response import Response, HTTPMessage
+from wex.response import Response, parse_headers
 from wex import etree as e
 
 example = b"""HTTP/1.1 200 OK
@@ -54,7 +54,7 @@ def test_parse():
 def test_parse_ioerror():
     class ProblemResponse(object):
         def __init__(self):
-            self.headers = HTTPMessage(BytesIO(), 0)
+            self.headers = parse_headers(BytesIO())
             self.url = None
         def read(self, *args):
             raise IOError

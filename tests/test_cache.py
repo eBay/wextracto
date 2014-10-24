@@ -1,20 +1,22 @@
-from wex import cache
+from wex.cache import cached, Cache
+import pytest
 
 
-@cache.cached
+@cached
 def cache_me(x):
     return 3**2
 
 
 def test_cache():
-    with cache.ComposeCache():
+    with Cache():
         assert cache_me(3) == 9
         assert cache_me(3) == 9
 
 
 def test_cache_attribute_error():
-    with cache.ComposeCache():
-        # create AttributeError in __exit__
-        del cache.thread_local.cache
+    with pytest.raises(AttributeError):
+        with Cache():
+            # create AttributeError in __exit__
+            del Cache.local.cache
 
 
