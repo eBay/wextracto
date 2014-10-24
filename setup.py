@@ -12,11 +12,10 @@ setup(
     author='Giles Brown',
     author_email='gsbrown@ebay.com',
     url='https://github.com/eBay/wextracto',
-    download_url = 'https://github.com/eBay/wextracto/tarball/0.2',
+    download_url = 'https://github.com/eBay/wextracto/tarball/' + __version__,
     license='BSD',
     include_package_data=True,
     packages=['wex'],
-    package_dir={'wex': 'wex'},
     package_data={
         '': ['LICENSE.txt', 'NOTICES.txt'],
         'wex': ['logging.conf'],
