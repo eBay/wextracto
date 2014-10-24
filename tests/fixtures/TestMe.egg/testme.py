@@ -1,3 +1,4 @@
+import wex.py2compat ; assert wex.py2compat
 import json
 import codecs
 

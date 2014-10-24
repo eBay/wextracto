@@ -1,9 +1,7 @@
 from __future__ import unicode_literals, absolute_import, print_function
-from operator import methodcaller
+import wex.py2compat ; assert wex.py2compat
 from lxml.etree import iterparse
 from codecs import getreader
-from six import PY2
-from six.moves.http_client import HTTPMessage
 from six.moves.urllib_parse import urljoin
 from wex.http import decode
 from wex.url import URL

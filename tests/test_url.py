@@ -124,8 +124,8 @@ def test_eexist_ok():
     with eexist_is_ok():
         os.mkdir(os.getcwd())
 
-def test_eexist_ok_raises():
+def test_eexist_ok_raises(tmpdir):
     with pytest.raises(OSError):
         # This error isn't supressed because its a different error
         with eexist_is_ok():
-            os.mkdir('/')
+            os.unlink(tmpdir.strpath)

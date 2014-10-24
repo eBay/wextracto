@@ -1,4 +1,7 @@
-py==1.4.22
-pytest==2.5.2
-pytest-cov==1.7.0
+# These are the things you need to develop/test Wextracto.
+# Runtime dependancies are listed under 'install_requires=' in 'setup.py'.
+py
+pytest
+pytest-cov
+ipdb
 sphinx-rtd-theme==0.1.6

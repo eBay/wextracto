@@ -1,6 +1,7 @@
 """ Functions for getting responses for HTTP urls. """
 
 from __future__ import unicode_literals, print_function
+import wex.py2compat ; assert wex.py2compat
 import io
 import requests
 from gzip import GzipFile
