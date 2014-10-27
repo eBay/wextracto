@@ -25,6 +25,8 @@ X-wex-url: http://some.com/
       <li class="num"></li>
       <li class="num">2 </li>
     </ul>
+    <div class="thing">First <span>one thing</span></div>
+    <div class="thing">then <span>another thing</span>.</div>
   </body>
 </html>
 """
@@ -161,4 +163,35 @@ def test_href_when_url_contains_dodgy_characters():
     f = e.css('a') | e.href | list
     # This will fail if we don't quote/unquote the base_url
     assert f(response(example_with_dodgy_url)) == ['http://foo.com/1']
+
+
+def test_itertext():
+    f = e.css('.thing') | e.itertext() | list
+    expected = ['First ', 'one thing', 'then ', 'another thing', '.']
+    assert f(response(example)) == expected
+
+
+def test_itertext_with_tail_false():
+    f = e.css('.thing') | e.itertext(with_tail=False) | list
+    expected = ['First ', 'one thing', 'then ', 'another thing']
+    assert f(response(example)) == expected
+
+
+def test_itertext_tag():
+    f = e.css('.thing') | e.itertext('span') | list
+    expected = ['one thing', 'another thing', '.']
+    assert f(response(example)) == expected
+
+
+def test_itertext_elem():
+    f = e.css('.thing') | (lambda l: l[0]) | e.itertext() | list
+    expected = ['First ', 'one thing']
+    assert f(response(example)) == expected
+
+
+def test_itertext_list():
+    f = e.css('.thing') | e.itertext() | list
+    expected = ['First ', 'one thing', 'then ', 'another thing', '.']
+    assert f(response(example)) == expected
+
 

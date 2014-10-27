@@ -15,6 +15,7 @@ from lxml.html import HTMLParser, XHTML_NAMESPACE
 
 from .composed import composable
 from .cache import cached
+from .iterable import flatten
 
 SKIP = object()
 skip = partial(is_, SKIP)
@@ -134,11 +135,19 @@ def list_filter_join(src):
 def text_content(src, __maybe_list_cache__={}):
     if hasattr(src, 'text_content'):
         if hasattr(src.tag, '__call__'):
-            # ummm - it's an HtmlComment of course
+            # so it must be an HtmlComment (obviously ;p)
             return ''
         return src.text_content()
     return ''
 
-
 text = text_content | normalize_space | list_filter_join
 text_list = text_content | normalize_space | list
+
+def itertext(*args, **kwargs):
+    @composable
+    def itertext(src):
+        if not isinstance(src, list):
+            src = [src]
+        return flatten(elem.itertext(*args, **kwargs) for elem in src)
+    return itertext
+
