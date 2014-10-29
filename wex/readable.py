@@ -7,6 +7,7 @@ They are used to to create `Response` objects using `Response.from_readable`.
 
 from __future__ import absolute_import, unicode_literals, print_function
 import os
+import sys
 import tarfile
 from io import FileIO
 from threading import local
@@ -70,8 +71,12 @@ def readables_from_paths(paths, save=False, responses_dir='responses'):
     """ Yield readables from a sequence of paths """
 
     for path in paths:
-        url = URL(path)
-        if url.parsed.scheme:
+        if path.strip() == '-':
+            tar = tarfile.open(mode='r|*', fileobj=sys.stdin)
+            for member in tar:
+                yield tar.extractfile(member)
+        elif URL(path).parsed.scheme:
+            url = URL(path)
             readables = url.get()
             if save:
                 readables = save_readables(url, responses_dir, readables)
