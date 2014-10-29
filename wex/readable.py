@@ -13,6 +13,7 @@ from io import FileIO
 from threading import local
 from functools import partial as partial_
 from contextlib import closing
+from six import PY2
 from .url import URL
 
 
@@ -72,7 +73,8 @@ def readables_from_paths(paths, save=False, responses_dir='responses'):
 
     for path in paths:
         if path.strip() == '-':
-            tar = tarfile.open(mode='r|*', fileobj=sys.stdin)
+            stdin = sys.stdin if PY2 else sys.stdin.buffer
+            tar = tarfile.open(mode='r|*', fileobj=stdin)
             for member in tar:
                 yield tar.extractfile(member)
         elif URL(path).parsed.scheme:
