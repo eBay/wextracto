@@ -18,6 +18,13 @@ def chained(*extractors):
 
 class ChainedExtractors(object):
 
+    @property
+    def __name__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.extractors)
+
     def __init__(self, extractors):
         self.extractors = extractors
 

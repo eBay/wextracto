@@ -82,6 +82,13 @@ def test_labelled_error():
     assert values == [('bar', error,)]
 
 
+def test_labelled_chain():
+    # bug test
+    labeller  = (lambda x: x)
+    extract = labelled(labeller)(chained(extract_arg0))
+    assert list(extract("foo")) == [("foo", "foo")]
+
+
 def test_attributes():
     attr = attributes()
     attr.add('foo', lambda v: v)
