@@ -72,6 +72,13 @@ class Attributes(object):
         for k, v in kw.items():
             self.add(k, v)
 
+    @property
+    def __name__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.extractors.keys())
+
     def __len__(self):
         return len(self.extractors)
 
