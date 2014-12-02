@@ -1,5 +1,7 @@
 from __future__ import unicode_literals, print_function
 import os
+import io
+import errno
 import sys
 import subprocess
 from itertools import tee
@@ -20,8 +22,10 @@ def pairwise(iterable):
     return zip(a, b)
 
 
+
 def setup_module():
     entry = resource_filename(__name__, 'fixtures/TestMe.egg')
+
     working_set.add_entry(entry)
 
 
@@ -32,18 +36,11 @@ def find_file_paths(top):
     return set(paths)
 
 
-def Xtest_main(monkeypatch, capsys):
-    argv = sys.argv[:1] + [url]
-    monkeypatch.setattr(sys, 'argv', argv)
-    command.main()
-    out, err = capsys.readouterr()
-    assert out == 'this\t"that"\n'
-
-
-def Xtest_console_script():
+def test_wex_console_script():
     env = dict(os.environ)
     egg = resource_filename(__name__, 'fixtures/TestMe.egg')
     env['PYTHONPATH'] = egg
+    # This test will fail unless you run setup.py develop or setup.py install
     exe = os.path.join(os.path.dirname(sys.executable), 'wex')
     # this url is cunningly crafted to generate UTF-8 output
     url = 'http://httpbin.org/get?this=that%C2%AE'
@@ -54,22 +51,29 @@ def Xtest_console_script():
     assert output == b'this\t"that\xc2\xae"\n'
 
 
+def run_main(monkeypatch, args):
+    argv = sys.argv[:1] + list(args)
+    monkeypatch.setattr(sys, 'argv', argv)
+    stdout = io.StringIO()
+    monkeypatch.setattr('wex.output.StdOut.stdout', stdout)
+    command.main()
+    return stdout.getvalue()
 
-def Xtest_main_tarfile(monkeypatch, capsys):
+
+def test_main_url(monkeypatch):
+    assert run_main(monkeypatch, [url]) == 'this\t"that"\n'
+
+
+def test_main_tarfile(monkeypatch):
     example_tar = resource_filename(__name__, 'fixtures/example.tar')
-    argv = sys.argv[:1] + [example_tar]
-    monkeypatch.setattr(sys, 'argv', argv)
-    command.main()
-    out, err = capsys.readouterr()
-    assert out == 'this\t"that"\n'
+    assert run_main(monkeypatch, [example_tar]) == 'this\t"that"\n'
 
 
-def Xtest_main_save(monkeypatch, tmpdir, capsys):
+def test_main_save(monkeypatch, tmpdir):
     destdir = tmpdir.strpath
-    argv = sys.argv[:1] + ['--save', '--responses', destdir, url]
-    monkeypatch.setattr(sys, 'argv', argv)
+    args = ['--save', '--responses', destdir, url]
+    assert run_main(monkeypatch, args) == 'this\t"that"\n'
 
-    command.main()
     sentinel = object()
     expected_dirs = [
         'http',
@@ -85,15 +89,12 @@ def Xtest_main_save(monkeypatch, tmpdir, capsys):
         if subdir is not sentinel:
             assert os.listdir(dirpath) == [subdir]
     assert sorted(os.listdir(dirpath)) == ['0.wexin', '0.wexout']
-    out, err = capsys.readouterr()
-    assert out == 'this\t"that"\n'
 
 
-def Xtest_main_no_such_file(monkeypatch, capsys):
+def test_main_no_such_file(monkeypatch):
     argv = sys.argv[:1] + ['no-such-file']
     monkeypatch.setattr(sys, 'argv', argv)
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as excinfo:
         command.main()
-    out, err = capsys.readouterr()
-    expected = "ERROR [wex.output] reading "
-    assert err[:len(expected)] == expected
+    assert isinstance(excinfo.value.args[0], IOError)
+    assert excinfo.value.args[0].errno == errno.ENOENT

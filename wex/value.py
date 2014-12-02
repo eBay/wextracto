@@ -27,7 +27,9 @@ json_encode = JSONEncoder(
     separators=(',', ':'),
     default=None,
     sort_keys=True,
-    ensure_ascii=sys.stdout.encoding != 'UTF-8',
+    # may need to make this an argument at some point,
+    # but for now let's assume UTF-8 is ok on the output.
+    ensure_ascii=False,
 ).encode
 
 

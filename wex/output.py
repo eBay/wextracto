@@ -10,7 +10,6 @@ import sys
 import logging; log = logging.getLogger(__name__)
 import codecs
 from multiprocessing import Lock
-from contextlib import closing
 from .response import Response
 from .readable import EXT_WEXIN
 
@@ -29,7 +28,8 @@ class StdOut(object):
     else:
         stdout = sys.stdout
 
-    def __init__(self):
+    def __init__(self, readable):
+        self.readable = readable
         self.buffer = []
         self.size = 0
 
@@ -38,6 +38,11 @@ class StdOut(object):
 
     def __exit__(self, *exc_info):
         self.flush()
+        self.close()
+
+    def close(self):
+        if hasattr(self.readable, 'close'):
+            self.readable.close()
 
     def flush(self):
         chunk = ''.join(self.buffer)
@@ -56,40 +61,41 @@ class StdOut(object):
 
 
 
-class TeeStdOut(object):
+class TeeStdOut(StdOut):
 
-    def __init__(self, path):
-        self.tee = codecs.open(path, 'w', 'UTF-8')
-        self.stdout = None
-
-    def __enter__(self):
-        self.stdout = StdOut.stdout
-        return self
-
-    def __exit__(self, *exc_info):
-        sys.stdout = self.stdout
-        self.close()
+    def __init__(self, readable):
+        super(TeeStdOut, self).__init__(readable)
+        stem, ext = os.path.splitext(getattr(readable, 'name', ''))
+        if stem and ext == EXT_WEXIN:
+            path = stem + EXT_WEXOUT
+            self.tee = codecs.open(path, 'w', 'UTF-8')
+        else:
+            self.tee = None
 
     def close(self):
-        self.tee.close()
+        super(TeeStdOut, self).close()
+        if self.tee:
+            self.tee.close()
 
     def write(self, chunk):
-        for write in (self.stdout.write, self.tee.write):
-            write(chunk)
+        super(TeeStdOut, self).write(chunk)
+        if self.tee:
+            self.tee.write(chunk)
 
     def flush(self):
-        for flush in (self.stdout.flush, self.tee.flush):
-            flush()
+        super(TeeStdOut, self).flush()
+        if self.tee:
+            self.tee.flush()
 
 
-def write_values_to_stdout(extract, readable):
+def write_values(context, readable, extract):
 
     ret = None
     try:
 
-        with closing(readable), StdOut() as stdout:
+        with context(readable) as writer:
             for value in Response.values_from_readable(extract, readable):
-                stdout.write(value.text())
+                writer.write(value.text())
 
     except IOError as exc:
 
@@ -106,14 +112,3 @@ def write_values_to_stdout(extract, readable):
         raise
 
     return ret
-
-
-def write_values_to_stdout_and_dir(extract, readable):
-
-    stem, ext = os.path.splitext(getattr(readable, 'name', ''))
-    if stem and ext == EXT_WEXIN:
-        path = stem + EXT_WEXOUT
-        with TeeStdOut(path):
-            return write_values_to_stdout(extract, readable)
-
-    return write_values_to_stdout(extract, readable)

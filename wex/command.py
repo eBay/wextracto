@@ -6,7 +6,7 @@ from pkg_resources import resource_filename
 from .readable import readables_from_paths
 from .processpool import do
 from .extractor import ExtractorFromEntryPoints
-from . import output
+from .output import StdOut, TeeStdOut, write_values
 
 
 default_logging_conf = resource_filename(__name__, 'logging.conf')
@@ -57,12 +57,12 @@ argparser.add_argument(
 
 class WriteExtracted(object):
 
-    def __init__(self, write, extract):
-        self.write = write
+    def __init__(self, context, extract):
+        self.context = context
         self.extract = extract
 
     def __call__(self, readable):
-        return self.write(self.extract, readable)
+        return write_values(self.context, readable, self.extract)
 
 
 def main():
@@ -73,9 +73,9 @@ def main():
     args = argparser.parse_args()
     extract = ExtractorFromEntryPoints(args.excluded_entry_points)
     if args.save:
-        func = WriteExtracted(output.write_values_to_stdout_and_dir, extract)
+        func = WriteExtracted(TeeStdOut, extract)
     else:
-        func = WriteExtracted(output.write_values_to_stdout, extract)
+        func = WriteExtracted(StdOut, extract)
 
     readables = readables_from_paths(args.paths, args.save, args.responses_dir)
     do(func, readables, pool_size=args.process_pool)
