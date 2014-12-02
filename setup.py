@@ -48,10 +48,12 @@ setup(
         [wex.method.http]
         get = wex.http:request
         post = wex.http:request
+        phantomjs = wex.phantomjs:request
 
         [wex.method.https]
         get = wex.http:request
         post = wex.http:request
+        phantomjs = wex.phantomjs:request
 
         [wex.method.ftp]
         get = wex.ftp:get
