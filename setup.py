@@ -55,9 +55,5 @@ setup(
 
         [wex.method.ftp]
         get = wex.ftp:get
-
-        [wex]
-        robots.txt = wex.sitemaps:urls_from_robots_txt
-        sitemaps = wex.sitemaps:urls_from_sitemap
     """
 )

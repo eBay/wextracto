@@ -79,11 +79,11 @@ identity = lambda x: x
 
 parse_url = u.parse_url | identity
 public_suffix = u.public_suffix | identity
-param = u.param('this') | identity
-param_with_default = u.param('other', ['2']) | identity
-whitelist_params = u.whitelist_params('that') | identity
-remove_params = u.remove_params('this') | identity
-strip_params = u.strip_params | identity
+param = u.url_query_param('this') | identity
+param_with_default = u.url_query_param('other', ['2']) | identity
+include_query_params = u.filter_url_query('that') | identity
+exclude_query_params = u.filter_url_query('this', exclude=True) | identity
+strip_url_query = u.strip_url_query | identity
 
 
 def test_parse_url():
@@ -104,16 +104,16 @@ def test_param_with_default():
     assert param_with_default(url1) == ['2']
 
 
-def test_whitelist_params():
-    assert whitelist_params(url1) == 'http://www.foo.com/g?that=2'
+def test_include_query_params():
+    assert include_query_params(url1) == 'http://www.foo.com/g?that=2'
 
 
-def test_remove_params():
-    assert remove_params(url1) == 'http://www.foo.com/g?that=2'
+def test_exclude_query_params():
+    assert exclude_query_params(url1) == 'http://www.foo.com/g?that=2'
 
 
-def test_strip_params():
-    assert strip_params(url1) == 'http://www.foo.com/g'
+def test_strip_url_query():
+    assert strip_url_query(url1) == 'http://www.foo.com/g'
 
 
 def test_public_suffix():

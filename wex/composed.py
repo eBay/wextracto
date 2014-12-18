@@ -106,10 +106,10 @@ class ComposedFunction(Composable):
     def __init__(self, *functions):
         self.functions = flatten(functions)
 
-    def __call__(self, arg):
+    def __call__(self, arg, **kw):
         res = arg
         for func in self.functions:
-            res = func(res)
+            res = func(res, **kw)
         return res
 
     def __compose__(self):

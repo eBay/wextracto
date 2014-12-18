@@ -1,6 +1,6 @@
 """ Helper functions for things that are iterable """
 
-from functools import partial, wraps
+from functools import partial
 from itertools import chain
 from six import next
 from six.moves import map as map_
@@ -17,6 +17,9 @@ class MultipleValuesError(ValueError):
 
 @composable
 def first(iterable):
+    if not hasattr(iterable, '__iter__'):
+        # turns out it isn't iterable after all
+        return iterable
     i = iter(iterable)
     try:
         v0 = next(i)
@@ -27,6 +30,9 @@ def first(iterable):
 
 @composable
 def one(iterable):
+    if not hasattr(iterable, '__iter__'):
+        # turns out it isn't iterable after all
+        return iterable
     i = iter(iterable)
     v0 = first(i)
     try:

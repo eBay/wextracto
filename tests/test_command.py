@@ -48,7 +48,7 @@ def test_wex_console_script():
     wex = subprocess.Popen(cmd, stdout=subprocess.PIPE, env=env)
     output = wex.stdout.read()
     assert wex.wait() == 0
-    assert output == b'this\t"that\xc2\xae"\n'
+    assert output == b'"this"\t"that\xc2\xae"\n'
 
 
 def run_main(monkeypatch, args):
@@ -61,18 +61,18 @@ def run_main(monkeypatch, args):
 
 
 def test_main_url(monkeypatch):
-    assert run_main(monkeypatch, [url]) == 'this\t"that"\n'
+    assert run_main(monkeypatch, [url]) == '"this"\t"that"\n'
 
 
 def test_main_tarfile(monkeypatch):
     example_tar = resource_filename(__name__, 'fixtures/example.tar')
-    assert run_main(monkeypatch, [example_tar]) == 'this\t"that"\n'
+    assert run_main(monkeypatch, [example_tar]) == '"this"\t"that"\n'
 
 
 def test_main_save(monkeypatch, tmpdir):
     destdir = tmpdir.strpath
     args = ['--save', '--responses', destdir, url]
-    assert run_main(monkeypatch, args) == 'this\t"that"\n'
+    assert run_main(monkeypatch, args) == '"this"\t"that"\n'
 
     sentinel = object()
     expected_dirs = [

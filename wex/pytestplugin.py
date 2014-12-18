@@ -6,7 +6,6 @@ from __future__ import absolute_import, unicode_literals, print_function  # prag
 # function level imports and pragmas.
 #
 
-import io
 import codecs
 import pytest                                            # pragma: no cover
 
@@ -47,12 +46,11 @@ class WexinFile(pytest.File):                        # pragma: no cover
         return self.actual.get(key, default)
 
     def extract(self):
-        from .extractor import ExtractorFromEntryPoints
+        from .entrypoints import extractor_from_entry_points
         from .response import Response
         from .value import json_encode
-        #from .output import encoder
         values = {}
-        extract = ExtractorFromEntryPoints()
+        extract = extractor_from_entry_points()
         with self.fspath.open('rb') as readable:
             for value in Response.values_from_readable(extract, readable):
                 value_set = values.setdefault(value.labels, set())

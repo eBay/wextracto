@@ -5,8 +5,9 @@ import argparse
 from pkg_resources import resource_filename
 from .readable import readables_from_paths
 from .processpool import do
-from .extractor import ExtractorFromEntryPoints
 from .output import StdOut, TeeStdOut, write_values
+from .value import Value
+from .entrypoints import extractor_from_entry_points
 
 
 default_logging_conf = resource_filename(__name__, 'logging.conf')
@@ -18,7 +19,35 @@ argparser.add_argument(
     'paths',
     metavar='path',
     nargs='+',
-    help="paths (urls, directories, files) from which to extract data"
+    help="url, directory or file from which to extract"
+)
+
+process_pool_size = argparser.add_mutually_exclusive_group()
+
+process_pool_size.add_argument(
+    '-P',
+    dest='process_pool_size',
+    action="store_const",
+    const=None,
+    default=1,
+    help="use multiprocessing pool",
+)
+
+process_pool_size.add_argument(
+    '--process-pool',
+    dest='process_pool_size',
+    metavar='N',
+    type=int,
+    default=1,
+    help="use multiprocessing pool with size of N",
+)
+
+argparser.add_argument(
+    '--responses',
+    dest="responses_dir",
+    metavar="DIR",
+    default="responses",
+    help="use directory DIR for saved input and output",
 )
 
 argparser.add_argument(
@@ -29,30 +58,12 @@ argparser.add_argument(
 )
 
 argparser.add_argument(
-    '--responses',
-    dest="responses_dir",
-    default="responses",
-    help="Directory for saved input and output",
+    '-x', '--exit-on-exc',
+    action="store_true",
+    default=False,
+    help="exit when an exception occurs during extraction",
 )
 
-argparser.add_argument(
-    '-P', '--process-pool',
-    action="store",
-    metavar="SIZE",
-    const=None,
-    nargs='?',
-    type=int,
-    default=1,
-    help="Use multi-process pool, optionally specificying size",
-)
-
-argparser.add_argument(
-    '-x', '--exclude-entry-point',
-    action="append",
-    default=[],
-    dest="excluded_entry_points",
-    help="Exclude extractor(s) with this entry point name"
-)
 
 
 class WriteExtracted(object):
@@ -71,11 +82,12 @@ def main():
     import logging.config ; logging.config.fileConfig(default_logging_conf)
 
     args = argparser.parse_args()
-    extract = ExtractorFromEntryPoints(args.excluded_entry_points)
+    extract = extractor_from_entry_points()
     if args.save:
         func = WriteExtracted(TeeStdOut, extract)
     else:
         func = WriteExtracted(StdOut, extract)
+    Value.exit_on_exc = args.exit_on_exc
 
     readables = readables_from_paths(args.paths, args.save, args.responses_dir)
-    do(func, readables, pool_size=args.process_pool)
+    do(func, readables, pool_size=args.process_pool_size)

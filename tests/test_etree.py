@@ -116,6 +116,16 @@ def test_href_empty():
     assert f(response(example)) == []
 
 
+def test_text_content():
+    f = e.css('h1') | e.text_content
+    assert f(response(example)) == ['hi']
+
+
+def test_text_content_text():
+    f = e.xpath('//h1/text()') | e.text_content
+    assert f(response(example)) == ['hi']
+
+
 def test_text_content_object_has_no_method():
     assert e.text_content(object()) == ''
 
@@ -131,7 +141,7 @@ def test_text_content_html_comment():
     assert e.text_content(comment) == ''
 
 
-def test_list_filter_join_non_list():
+def test_list_filter_join():
     # notice how the empty string gets filtered from the join
     assert e.list_filter_join(['A', '', 'B']) == 'A B'
 
@@ -141,13 +151,13 @@ def test_list_filter_join_non_list():
     assert e.list_filter_join(non_list) is non_list
 
 
-def test_text():
-    func = e.css('ul li') | e.text
+def test_join_text():
+    func = e.css('ul li') | e.join_text
     assert func(response(example)) == '1 2'
 
 
-def test_text_list():
-    func = e.css('ul li') | e.text_list
+def test_list_text():
+    func = e.css('ul li') | e.list_text
     assert func(response(example)) == ['1', '', '2']
 
 

@@ -14,7 +14,7 @@ def test_labels():
 
 
 def test_text():
-    assert Value(('a', 1)).text() == 'a\t1\n'
+    assert Value(('a', 1)).text() == '"a"\t1\n'
 
 
 def test_text_error():

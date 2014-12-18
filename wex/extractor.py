@@ -96,49 +96,7 @@ class Attributes(object):
             name = extractor_or_name
         self.extractors[name] = extractor
 
-    def extractor(self, extractor):
+    def attribute(self, extractor):
         """ Add an extractor using decorator syntax. """
         self.add(extractor)
         return extractor
-
-
-
-
-class ExtractorFromEntryPoints(object):
-    """ An extractor that loads sub-extractors from entry points. 
-
-    Sub-extractors may be hostname specific.  This is indicated by
-    using a leading '.' in the entry point name.
-    """
-
-    def __init__(self, excluded=[]):
-        self.extractors = {}
-        self.excluded = excluded
-
-    def __call__(self, arg0, *args, **kw):
-        url = getattr(arg0, 'url', None)
-        hostname = urlparse(url).hostname if url else None
-        if hostname not in self.extractors:
-            self.extractors[hostname] = self.extractor_for_hostname(hostname)
-        extractor = self.extractors[hostname]
-        return extractor(arg0, *args, **kw)
-
-    def extractor_for_hostname(self, hostname):
-        extractors = []
-        entry_point_group = 'wex'
-        for entry_point in iter_entry_points(entry_point_group):
-            if entry_point.name in self.excluded:
-                continue
-            if hostname and entry_point.name.startswith('.'):
-                dotname = '.' + hostname
-                if not dotname.endswith(entry_point.name):
-                    continue
-            try:
-                extractor = entry_point.load()
-            except Exception:
-                logger = logging.getLogger(__name__)
-                logger.exception("Failed to load [%s] entry point '%s'",
-                                 entry_point_group, entry_point.name)
-                continue
-            extractors.append(extractor)
-        return chained(*extractors)

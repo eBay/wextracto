@@ -3,19 +3,20 @@
 from __future__ import absolute_import, unicode_literals, print_function
 import logging
 import wex.py2compat ; assert wex.py2compat
+from six import string_types
 from six.moves.urllib_parse import urljoin, quote, unquote
-from functools import partial, wraps
+from functools import partial
 from operator import is_, methodcaller
 
 from six.moves import filter, reduce
 
-from lxml.etree import XPath, _ElementTree, Element
+from lxml.etree import XPath, _ElementTree, Element, Comment
 from lxml.cssselect import CSSSelector
 from lxml.html import HTMLParser, XHTML_NAMESPACE
 
 from .composed import composable
 from .cache import cached
-from .iterable import flatten
+from .iterable import flatten, one_or_none
 
 SKIP = object()
 skip = partial(is_, SKIP)
@@ -84,6 +85,7 @@ def css(expression):
 def xpath(expression, namespaces=default_namespaces):
     return parse | XPath(expression, namespaces=namespaces)
 
+
 def maybe_list(f):
     #@wraps(WrapsShim(f))
     def wrapper(src, *args, **kwargs):
@@ -96,8 +98,6 @@ def maybe_list(f):
 
 def attrib(name, default=SKIP):
     return maybe_list(methodcaller('get', name, default))
-
-
 
 
 def base_url_join(f):
@@ -134,14 +134,18 @@ def list_filter_join(src):
 @maybe_list
 def text_content(src, __maybe_list_cache__={}):
     if hasattr(src, 'text_content'):
-        if hasattr(src.tag, '__call__'):
-            # so it must be an HtmlComment (obviously ;p)
+        if src.tag is Comment:
             return ''
         return src.text_content()
+    elif isinstance(src, string_types):
+        return src
     return ''
 
-text = text_content | normalize_space | list_filter_join
-text_list = text_content | normalize_space | list
+
+text = text_content | normalize_space | one_or_none
+join_text = text_content | normalize_space | list_filter_join
+list_text = text_content | normalize_space | list
+
 
 def itertext(*args, **kwargs):
     @composable
@@ -150,4 +154,3 @@ def itertext(*args, **kwargs):
             src = [src]
         return flatten(elem.itertext(*args, **kwargs) for elem in src)
     return itertext
-
