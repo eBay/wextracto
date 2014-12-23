@@ -3,20 +3,19 @@
 from __future__ import absolute_import, unicode_literals, print_function
 import logging
 import wex.py2compat ; assert wex.py2compat
-from six import string_types
 from six.moves.urllib_parse import urljoin, quote, unquote
 from functools import partial
 from operator import is_, methodcaller
 
-from six.moves import filter, reduce
+from six.moves import reduce
 
-from lxml.etree import XPath, _ElementTree, Element, Comment
+from lxml.etree import XPath, _ElementTree, Element
 from lxml.cssselect import CSSSelector
 from lxml.html import HTMLParser, XHTML_NAMESPACE
 
 from .composed import composable
 from .cache import cached
-from .iterable import flatten, one_or_none
+from .iterable import one_or_none
 
 SKIP = object()
 skip = partial(is_, SKIP)
@@ -118,39 +117,37 @@ src = maybe_list(base_url_join(methodcaller('get', 'src', SKIP)))
 
 
 @composable
-@maybe_list
-def normalize_space(string, __maybe_list_cache__={}):
-    return space_join(string.split())
+def normalize_space(src):
+    """ Return a whitespace normalized version of ``src``.
 
+    :param src: text or iterable.
 
-def list_filter_join(src):
-    """ Filters empty strings from a list """
-    if isinstance(src, list):
-        return ' '.join(filter(None, src))
-    return src
+    If ``src`` is iterable then a generator will be returned.
+    """
+    if hasattr(src, '__iter__'):
+        return (normalize_space_and_join(s) for s in src)
+    return space_join(src.split())
 
 
 @composable
-@maybe_list
-def text_content(src, __maybe_list_cache__={}):
-    if hasattr(src, 'text_content'):
-        if src.tag is Comment:
-            return ''
-        return src.text_content()
-    elif isinstance(src, string_types):
-        return src
-    return ''
+def normalize_space_and_join(src):
+    """ Return a string of space-normalized text content. """
+    if hasattr(src, '__iter__'):
+        normalized = [normalize_space_and_join(s) for s in src]
+        return space_join((s for s in normalized if s.strip()))
+    return space_join(src.split())
 
 
-text = text_content | normalize_space | one_or_none
-join_text = text_content | normalize_space | list_filter_join
-list_text = text_content | normalize_space | list
+@composable
+def itertext(src):
+    if hasattr(src, 'itertext'):
+        # using '*' to exclude comments
+        return (t for t in src.itertext('*'))
+    elif hasattr(src, '__iter__'):
+        return (itertext(s) for s in src)
+    return src
 
 
-def itertext(*args, **kwargs):
-    @composable
-    def itertext(src):
-        if not isinstance(src, list):
-            src = [src]
-        return flatten(elem.itertext(*args, **kwargs) for elem in src)
-    return itertext
+text = itertext | normalize_space | one_or_none
+join_text = itertext | normalize_space_and_join
+list_text = itertext | normalize_space | list

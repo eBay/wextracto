@@ -4,6 +4,7 @@ from lxml import html
 from operator import itemgetter
 from wex.response import Response, parse_headers
 from wex import etree as e
+from wex.iterable import flatten
 
 example = b"""HTTP/1.1 200 OK
 X-wex-url: http://some.com/
@@ -20,6 +21,7 @@ X-wex-url: http://some.com/
     </div>
     <div id="iter_text">This is <span>some </span>text.</div>
     <div id="nbsp">&nbsp;</div>
+    <div id="br">oh<br>my</div>
     <ul>
       <li class="num"> 1</li>
       <li class="num"></li>
@@ -116,39 +118,48 @@ def test_href_empty():
     assert f(response(example)) == []
 
 
-def test_text_content():
-    f = e.css('h1') | e.text_content
-    assert f(response(example)) == ['hi']
+def test_normalize_space():
+    assert e.normalize_space('a') == 'a'
 
 
-def test_text_content_text():
-    f = e.xpath('//h1/text()') | e.text_content
-    assert f(response(example)) == ['hi']
+def test_normalize_space_list():
+    gen = e.normalize_space(['a'])
+    assert list(gen) == ['a']
 
 
-def test_text_content_object_has_no_method():
-    assert e.text_content(object()) == ''
+def test_normalize_space_gen():
+    gen = e.normalize_space((ch for ch in 'a'))
+    assert list(gen) == ['a']
 
 
-def test_text_content_nbsp():
-    func = e.css('#nbsp') | e.text_content | list
+def test_normalize_space_nested():
+    gen = e.normalize_space([['a', ['b', 'c']], ['d']])
+    assert list(gen) == ['a b c', 'd']
+
+
+def test_text():
+    f = e.css('h1') | e.text
+    assert f(response(example)) == 'hi'
+
+
+def test_text_from_xpath():
+    f = e.xpath('//h1/text()') | e.text
+    assert f(response(example)) == 'hi'
+
+
+def test_nbsp():
+    func = e.css('#nbsp') | e.itertext | flatten | list
     assert func(response(example)) == [u'\xa0']
 
 
-def test_text_content_html_comment():
-    etree = html.fromstring('<html><!-- comment --></html>')
-    (comment,) = etree.getchildren()
-    assert e.text_content(comment) == ''
+def test_text_br():
+    func = e.css('#br') | e.text
+    assert func(response(example)) == 'oh my'
 
 
-def test_list_filter_join():
-    # notice how the empty string gets filtered from the join
-    assert e.list_filter_join(['A', '', 'B']) == 'A B'
-
-
-def test_list_filter_join_non_list():
-    non_list = object()
-    assert e.list_filter_join(non_list) is non_list
+def test_text_html_comment():
+    tree = html.fromstring('<html><!-- comment --></html>')
+    assert e.text(tree) == None
 
 
 def test_join_text():
@@ -176,32 +187,12 @@ def test_href_when_url_contains_dodgy_characters():
 
 
 def test_itertext():
-    f = e.css('.thing') | e.itertext() | list
+    f = e.css('.thing') | e.itertext | flatten | list
     expected = ['First ', 'one thing', 'then ', 'another thing', '.']
-    assert f(response(example)) == expected
-
-
-def test_itertext_with_tail_false():
-    f = e.css('.thing') | e.itertext(with_tail=False) | list
-    expected = ['First ', 'one thing', 'then ', 'another thing']
-    assert f(response(example)) == expected
-
-
-def test_itertext_tag():
-    f = e.css('.thing') | e.itertext('span') | list
-    expected = ['one thing', 'another thing', '.']
     assert f(response(example)) == expected
 
 
 def test_itertext_elem():
-    f = e.css('.thing') | (lambda l: l[0]) | e.itertext() | list
+    f = e.css('.thing') | (lambda l: l[0]) | e.itertext | list
     expected = ['First ', 'one thing']
     assert f(response(example)) == expected
-
-
-def test_itertext_list():
-    f = e.css('.thing') | e.itertext() | list
-    expected = ['First ', 'one thing', 'then ', 'another thing', '.']
-    assert f(response(example)) == expected
-
-
