@@ -1,3 +1,23 @@
+""" When maintaining extractors it can be helpful to have some sample input
+and output so that regression testing can be performed when we need to change
+the extractors.
+
+Wextracto supports this by using the ``--save`` or ``--save-dir`` options to
+the :mod:`wex <wex.command>` command.  This option saves both the input and
+output to a local directory.
+
+This input and output can then be used for comparison with the current
+extractor output.
+
+To check compare current output against saved output run 
+`py.test <http://pytest.org/>`_ like so:
+
+.. code-block:: shell
+
+    $ py.test saved/
+
+
+"""
 from __future__ import absolute_import, unicode_literals, print_function  # pragma: no cover
 
 #
@@ -6,7 +26,6 @@ from __future__ import absolute_import, unicode_literals, print_function  # prag
 # function level imports and pragmas.
 #
 
-import codecs
 import pytest                                            # pragma: no cover
 
 TAB = '\t'  # pragma: no cover
@@ -24,50 +43,66 @@ class WexinFile(pytest.File):                        # pragma: no cover
 
     def __init__(self, path, parent):
         super(WexinFile, self).__init__(path, parent)
-        self.actual = None
+        self.extracted_values = None
+        self.value_items = {}
 
     def collect(self):                                   # pragma: no cover
-        from itertools import groupby
         from .output import EXT_WEXOUT
         basename = self.fspath.purebasename + EXT_WEXOUT
-        wexout = self.fspath.dirpath().join(basename)
-        items = (line.rstrip(LF).split(TAB) for line in codecs.open(wexout.strpath, encoding='UTF-8'))
-        keys = set()
-        for key, items_for_key in groupby(items, key=lambda item: tuple(item[:-1])):
-            values = set()
-            keys.add(key)
-            for item in items_for_key:
-                values.add(item[-1])
-            yield WextractoItem(key, self, values)
+        path = self.fspath.dirpath().join(basename)
+        self.value_items = {}
+        with path.open(encoding='UTF-8') as wexout:
+            # For testing purposes we keep the values as JSON strings
+            # this lets us not have to worry about hashable types, etc.
+            for line in wexout:
+                labels, _, value = line.rpartition('\t')
+                if labels in self.value_items:
+                    item = self.value_items[labels]
+                else:
+                    item = WexoutValues(labels, self)
+                    self.value_items[labels] = item
+                    yield item
+                item.values.add(value.strip())
+        yield WexoutLabels('labels', self)
 
-    def get_actual(self, key, default=MISSING):
-        if self.actual is None:
-            self.actual = self.extract()
-        return self.actual.get(key, default)
+    def get_extracted_values(self, name):
+        if self.extracted_values is None:
+            self.extracted_values = self.extract_values()
+        return self.extracted_values.get(name, set())
 
-    def extract(self):
+    def get_extracted_labels(self):
+        if self.extracted_values is None:
+            self.extracted_values = self.extract_values()
+        return set(self.extracted_values)
+
+    def extract_values(self):
         from .entrypoints import extractor_from_entry_points
         from .response import Response
-        from .value import json_encode
         values = {}
         extract = extractor_from_entry_points()
         with self.fspath.open('rb') as readable:
             for value in Response.values_from_readable(extract, readable):
-                value_set = values.setdefault(value.labels, set())
-                try:
-                    value_set.add(json_encode(value.value))
-                except TypeError:
-                    pass
+                text = value.text()
+                labels, _, value = text.rpartition(b'\t')
+                values.setdefault(labels, set()).add(value.strip())
         return values
 
 
-class WextractoItem(pytest.Item):                        # pragma: no cover
-    def __init__(self, key, parent, values):            # pragma: no cover
-        super(WextractoItem, self).__init__('::'.join(key), parent)
-        self.key = key
-        self.values = values
+class WexoutValues(pytest.Item):                        # pragma: no cover
+    """ Test that the value set is the same. """
+
+    def __init__(self, name, parent):            # pragma: no cover
+        super(WexoutValues, self).__init__(name, parent)
+        self.values = set()
 
     def runtest(self):
-        actual = self.parent.get_actual(self.key, MISSING)
-        assert actual is not MISSING
-        assert actual == self.values
+        assert self.values == self.parent.get_extracted_values(self.name)
+
+
+class WexoutLabels(pytest.Item):
+    """ Test that we still see the same set of labels. """
+
+    def runtest(self):
+        extracted_labels = self.parent.get_extracted_labels()
+        saved_labels = set(self.parent.value_items.keys())
+        assert extracted_labels == saved_labels

@@ -1,4 +1,7 @@
-""" Factory functions for extracting from lxml element trees. """
+"""
+Composable functions for extracting data using 
+`lxml <http://lxml.de/>`_.
+"""
 
 from __future__ import absolute_import, unicode_literals, print_function
 import logging
@@ -47,6 +50,10 @@ class WrapsShim(object):
 @composable
 @cached
 def parse(src):
+    """ Returns an element tree create by `LXML <http://lxml.de/>`_. 
+       :param src: A readable object such as a :class:`wex.response.Response`.
+    """
+
     if not hasattr(src, 'read'):
         return src
     charset = src.headers.get_content_charset()
@@ -78,10 +85,39 @@ def base_url(root):
 
 
 def css(expression):
+    """ Returns a :func:`composable <wex.composed.composable>` callable that
+        will select elements defined by a 
+        `CSS selector <http://en.wikipedia.org/wiki/Cascading_Style_Sheets#Selector>`_ 
+        expression.
+
+        :param expression: The CSS selector expression.
+
+        The callable returned accepts a :class:`wex.response.Response`, a
+        list of elements or an individual element as an argument.
+    """
     return parse | CSSSelector(expression)
 
 
 def xpath(expression, namespaces=default_namespaces):
+    """ Returns :func:`composable <wex.composed.composable>` callable that will
+        select elements defined by an 
+        `XPath <http://en.wikipedia.org/wiki/XPath>`_ expression.
+
+        :param expression: The XPath expression.
+        :param namespaces: The namespaces.
+
+        The callable returned accepts a :class:`wex.response.Response`, a
+        list of elements or an individual element as an argument.
+
+        For example:
+
+        .. code-block:: pycon
+
+            >>> from lxml.html import fromstring
+            >>> tree = fromstring('<h1>Hello</h1>')
+            >>> selector = xpath('//h1')
+
+    """
     return parse | XPath(expression, namespaces=namespaces)
 
 
@@ -118,7 +154,7 @@ src = maybe_list(base_url_join(methodcaller('get', 'src', SKIP)))
 
 @composable
 def normalize_space(src):
-    """ Return a whitespace normalized version of ``src``.
+    """ Return a whitespace normalized version of its input.
 
     :param src: text or iterable.
 
@@ -140,6 +176,10 @@ def normalize_space_and_join(src):
 
 @composable
 def itertext(src):
+    """ Iterates text from elements.
+
+        :param src: The element or elements to iterate.
+    """
     if hasattr(src, 'itertext'):
         # using '*' to exclude comments
         return (t for t in src.itertext('*'))
@@ -148,6 +188,10 @@ def itertext(src):
     return src
 
 
-text = itertext | normalize_space | one_or_none
+#: A :class:`wex.composed.ComposedFunction` that returns the whitespace 
+#: normalized text from one element.
+text = itertext | normalize_space
+
+#: A :class:`wex.composed.ComposedFunction` that returns the whitespace 
+#: normalized text from zero or more elements joined with a space.
 join_text = itertext | normalize_space_and_join
-list_text = itertext | normalize_space | list

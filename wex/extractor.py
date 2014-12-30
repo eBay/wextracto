@@ -1,10 +1,18 @@
-""" Loading, combining and using extractor functions """
+""" An extractor is a callable that returns or yields data. For example:
+
+.. code-block:: python
+
+    def extract(response):
+        return "something"
+
+The ``response`` parameter here is an instance of 
+:class:`wex.response.Response`.
+
+Extractors can be combined in various ways.
+"""
 
 from __future__ import absolute_import, unicode_literals, print_function
-import logging
 from functools import wraps
-from six.moves.urllib_parse import urlparse
-from pkg_resources import iter_entry_points
 from .value import yield_values
 
 
@@ -12,7 +20,31 @@ OMITTED = object()
 
 
 def chained(*extractors):
-    """ Creates an extractor Chains extractors functions to make a new one. """
+    """ Returns an extractor that chains the output of other extractors.
+
+    :param extractors: an iterable of extractor callables to chain
+
+    For example an extractor function ``extract`` defined as follows:
+
+    .. code-block:: python
+
+        def extract1(response):
+            yield "one"
+
+        def extract2(response):
+            yield "two"
+
+        extract = chained(extract1, extract2)
+
+    Would produce the following extraction output:
+
+    .. code-block:: shell
+
+        $ wex http://example.net/
+        "one"
+        "two"
+
+    """
     return ChainedExtractors(extractors)
 
 
@@ -39,7 +71,39 @@ class ChainedExtractors(object):
 
 
 def labelled(*literals_or_callables):
-    """ Wraps an extractor so that the extracted values are labelled. """
+    """ Returns a decorator that will label the output an extractor.
+
+    :param literals_or_callables: An iterable of labels or callables.
+
+    Each item in ``literals_or_callables`` may be a literal or a callable.
+    Any callable will called with the same parameters as the extractor
+    and whatever is returned will by used as a label.
+
+    For example an extractor function ``extract`` defined as follows:
+
+    .. code-block:: python
+
+        def extract1(response):
+            yield "one"
+
+
+        def label2(response):
+            return "label2"
+
+
+        extract = labelled("label1", label2)(extract1)
+
+    Would produce the following extraction output:
+
+    .. code-block:: shell
+
+        $ wex http://example.net/
+        "label1"    "label2"    "one"
+
+    Note that if any of the labels are
+    `false <https://docs.python.org/2/library/stdtypes.html#truth-value-testing>`_ 
+    then no output will be generated from that extractor.
+    """
 
     def call(label, arg0):
         return (label(arg0) if hasattr(label, '__call__') else label)
@@ -61,16 +125,35 @@ def labelled(*literals_or_callables):
     return labelled_extractor_decorator
 
 
-def attributes(**kw):
-    """ Creates a composite extractor from labelled extractors. """
-    return Attributes(**kw)
-
 class Attributes(object):
+    """ A extractor that is a collection of labelled extractors.
+
+    Extractors can be added to the collection on construction
+    using keyword arguments for the labels.  For example, an 
+    extractor function ``extract`` defined as follows:
+
+    .. code-block:: python
+
+        extract = Attributes(
+            attr1 = (lambda response: "one"),
+            attr2 = (lambda response: "two"),
+        )
+
+    Would produce the extraction output something like this:
+
+    .. code-block:: shell
+
+        $ wex http://example.net/
+        "attr1"    "one"
+        "attr2"    "two"
+
+    The ordering of the attributes in the output is arbitrary.
+    """
 
     def __init__(self, **kw):
         self.extractors = {}
         for k, v in kw.items():
-            self.add(k, v)
+            self.add(v, k)
 
     @property
     def __name__(self):
@@ -87,16 +170,26 @@ class Attributes(object):
             for value in yield_values(extractor, *args, **kwargs):
                 yield value.label(name)
 
-    def add(self, extractor_or_name, extractor=OMITTED):
-        """ Add attribute function decorator/add method. """
-        if extractor is OMITTED:
-            name = extractor_or_name.__name__
-            extractor = extractor_or_name
-        else:
-            name = extractor_or_name
-        self.extractors[name] = extractor
+    def add(self, extractor, label=None):
+        """ Add an attribute extractor.
 
-    def attribute(self, extractor):
-        """ Add an extractor using decorator syntax. """
-        self.add(extractor)
+        :param callable extractor: The extractor to be added.
+        :param str label: The label for the extractor.
+                          This may be ``None`` in which case the
+                          extractors ``__name__`` attribute will be used.
+
+        This method returns the extractor added.  This means it can
+        also be used as a decorator. For example:
+
+        .. code-block:: python
+
+            attrs = Attributes()
+
+            @attrs.add
+            def attr1(response):
+                return "one"
+        """
+        if label is None:
+            label = extractor.__name__
+        self.extractors[label] = extractor
         return extractor

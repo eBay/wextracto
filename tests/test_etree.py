@@ -138,13 +138,13 @@ def test_normalize_space_nested():
 
 
 def test_text():
-    f = e.css('h1') | e.text
-    assert f(response(example)) == 'hi'
+    f = e.css('h1') | e.text | list
+    assert f(response(example)) == ['hi']
 
 
 def test_text_from_xpath():
-    f = e.xpath('//h1/text()') | e.text
-    assert f(response(example)) == 'hi'
+    f = e.xpath('//h1/text()') | e.text | list
+    assert f(response(example)) == ['hi']
 
 
 def test_nbsp():
@@ -153,13 +153,13 @@ def test_nbsp():
 
 
 def test_text_br():
-    func = e.css('#br') | e.text
-    assert func(response(example)) == 'oh my'
+    func = e.css('#br') | e.text | list
+    assert func(response(example)) == ['oh my']
 
 
 def test_text_html_comment():
     tree = html.fromstring('<html><!-- comment --></html>')
-    assert e.text(tree) == None
+    assert [t for t in e.text(tree)] == []
 
 
 def test_join_text():
@@ -168,7 +168,7 @@ def test_join_text():
 
 
 def test_list_text():
-    func = e.css('ul li') | e.list_text
+    func = e.css('ul li') | e.text | list
     assert func(response(example)) == ['1', '', '2']
 
 

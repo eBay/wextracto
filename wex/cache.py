@@ -18,16 +18,18 @@ class Cache(dict):
 
 
 def cached(f):
-    """ Decorator to cache function results keyed by function arguments. """
+    """ Decorator to cache results keyed by function arguments. """
 
     @wraps(f)
     def wrapper(*args):
         cache = Cache.get()
         key = (f,) + args
-        if key in cache:
+        try:
             return cache[key]
-        res = f(*args)
-        cache[key] = res
-        return res
+        except TypeError:
+            return f(*args)
+        except KeyError:
+            result = cache[key] = f(*args)
+            return result
 
     return wrapper

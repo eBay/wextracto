@@ -1,63 +1,79 @@
 .. _reference:
 
+#########
 Reference
-=========
+#########
 
-The Wextracto reference.
-
-.. #wextract/cache.py
-   #wextract/ftp.py
-   #wextract/http.py
-   #wextract/iterable.py
-   #wextract/lxml.py
-   #wextract/output.py
-   #wextract/pytestplugin.py
-   #wextract/readable.py
-   #wextract/regex.py
-   #wextract/response.py
-   #wextract/save.py
-   #wextract/url.py
+This is the reference for the Wextracto web data extraction package.
 
 Command
--------
+~~~~~~~
 
-Wextracto exposes one command, ``wex``, as a
-`console_script <https://pythonhosted.org/setuptools/setuptools.html#automatic-script-creation>`_.
+.. automodule:: wex.command
+    :members:
 
-For information on the options use the --help argument:
+Registering Extractors
+~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: sh
-
-    $ wex --help
-
+.. automodule:: wex.entrypoints
 
 Extractor
----------
+~~~~~~~~~
 
-Extractor functions are registered as `entry points <https://pythonhosted.org/setuptools/setuptools.html#dynamic-discovery-of-services-and-plugins>`_ under the group ``[wex]``.
+.. automodule:: wex.extractor
+    :members:
 
-Extractor functions take a single :class:`wex.response.Response` argument
-and yields tuples that are serialized and written to standard output.
+Element Tree
+~~~~~~~~~~~~
 
-A minimal extractor function would looks like this:
+.. automodule:: wex.etree
+    :members:
 
-.. code-block:: python
+Regular Expressions
+~~~~~~~~~~~~~~~~~~~
 
-    def extractor(response):
-        yield ("something",)
+.. automodule:: wex.regex
+    :members:
+
+Iterables
+~~~~~~~~~
+
+.. automodule:: wex.iterable
+    :members:
+
+URLs
+~~~~
+
+.. automodule:: wex.url
+    :members:
+
+Sitemaps
+~~~~~~~~
+
+.. automodule:: wex.sitemaps
+    :members:
 
 Response
---------
-.. autoclass:: wex.response.Response
+~~~~~~~~
 
+.. automodule:: wex.response
+    :members:
+
+Composed
+~~~~~~~~
+
+.. automodule:: wex.composed
+    :members:
 
 Output
-------
+~~~~~~
+
+.. automodule:: wex.value
 
 .. automodule:: wex.output
 
 
-Composed Functions
-------------------
+Regression Tests
+~~~~~~~~~~~~~~~~
 
-.. automodule:: wex.composed
+.. automodule:: wex.pytestplugin

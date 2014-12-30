@@ -30,6 +30,7 @@ import os
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.graphviz',
     'sphinx.ext.viewcode',
 ]
 
@@ -95,6 +96,11 @@ pygments_style = 'sphinx'
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
+
+
+# -- Options for Graphviz output ------------------------------------------
+
+graphviz_output_format = 'svg'
 
 
 # -- Options for HTML output ----------------------------------------------

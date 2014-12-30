@@ -25,32 +25,45 @@ else:
 
 
 class Response(addinfourl):
-    """ Response class in the style of urllib2 with extra bits. """
+    """ A urllib2 style Response with some extras. 
+
+        :param fp: A file-like object containing the response content.
+        :param headers: The response headers.
+        :param str url: The URL of the response.
+        :param int code: The status code of the responce (e.g. 200).
+        :param int protocol: The protocol of the response (e.g. "HTTP/1.1").
+        :param int reason: The reason (e.g. "OK").
+        :param str request_url: The initial URL that lead to the response.
+                                In the presence of multiple responses to
+                                a request, for example redirects, this may 
+                                be different to the ``url`` parameter.
+    """
 
     def __init__(self, fp, headers, **kw):
-        wex_request_url = headers.get('x-wex-request-url', None)
-        wex_url = headers.get('x-wex-url', wex_request_url)
+        self.request_url = kw.pop('request_url', headers.get('x-wex-request-url'))
         addinfourl.__init__(self, fp, headers,
-                            kw.pop('url', wex_url),
+                            kw.pop('url', headers.get('x-wex-url', self.request_url)),
                             kw.pop('code', None))
         self.protocol = kw.pop('protocol', None)
         self.version = kw.pop('version', None)
         self.reason = kw.pop('reason', None)
-        self.request_url = kw.pop('request_url', wex_request_url)
-        self.schedule = kw.pop('schedule', headers.get('x-wex-schedule', None))
         if kw:
             raise ValueError("unexpected keyword arguments %r" % kw.keys())
 
-    def seek(self, pos=0, mode=0):
-        self.fp.seek(pos, mode)
+    def seek(self, offset=0, whence=0):
+        """ Seek the content file position.
+
+            :param int offset: The offset from whence.
+            :param int whence: 0=from start,1=from current position,2=from end
+        """
+        self.fp.seek(offset, whence)
         return self.fp
 
     @classmethod
-    def values_from_readable(cls, extract, readable):
-        """ Yields values extracted from 'readable' using 'extract'. """
+    def values_from_readable(cls, extractor, readable):
         response = cls.from_readable(readable)
         with Cache():
-            for value in yield_values(extract, response):
+            for value in yield_values(extractor, response):
                 yield value
 
     @classmethod
@@ -67,8 +80,6 @@ class Response(addinfourl):
 
     @staticmethod
     def parse_status_line(status_line, field_defaults=['']*3):
-        """ Parses HTTP style status line. """
-
         fields = status_line.rstrip(b'\r\n').split(None, 2) + field_defaults
         protocol_version, code, reason = fields[:3]
 
@@ -89,7 +100,6 @@ class Response(addinfourl):
 
     @classmethod
     def content_file(cls, response_file, headers):
-
         try:
             content_length = int(headers.get('content-length', 0))
         except ValueError:

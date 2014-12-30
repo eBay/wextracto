@@ -1,3 +1,9 @@
+""" Extractors for URLs from 
+`/robots.txt <http://en.wikipedia.org/wiki/Robots_exclusion_standard#Sitemap>`_
+and `sitemaps <http://www.sitemaps.org/protocol.html>`_.
+"""
+
+
 from __future__ import unicode_literals, absolute_import, print_function
 import wex.py2compat ; assert wex.py2compat
 from lxml.etree import iterparse
@@ -8,7 +14,7 @@ from wex.http import decode
 from wex.url import URL
 
 
-def sitemap_urls_from_robots_txt(response):
+def urls_from_robots_txt(response):
     """ Yields sitemap URLs from "/robots.txt" """
 
     url = URL(response.request_url or response.url or '')
@@ -31,7 +37,10 @@ def sitemap_urls_from_robots_txt(response):
         yield "url", joined.update_fragment(sitemap=True)
 
 
-def urls_from_sitemap_or_sitemapindex(response):
+def urls_from_urlset_or_sitemapindex(response):
+    """ Yields URLs from ``<urlset>`` or ``<sitemapindex>`` elements as per 
+        `sitemaps.org <http://www.sitemaps.org/protocol.html>`_.
+    """
 
     content_subtype = response.headers.get_content_subtype()
     if 'xml' not in content_subtype.split('+'):
@@ -65,7 +74,9 @@ def urls_from_sitemap_or_sitemapindex(response):
             while elem.getprevious() is not None:
                 del root[0]
 
+#: Extractor that combines :func:`.urls_from_robots_txt` and
+#: :func:`.urls_from_urlset_or_sitemapindex`.
 urls_from_sitemaps = chained(
-    sitemap_urls_from_robots_txt,
-    urls_from_sitemap_or_sitemapindex,
+    urls_from_robots_txt,
+    urls_from_urlset_or_sitemapindex,
 )

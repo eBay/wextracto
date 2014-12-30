@@ -71,7 +71,7 @@ def test_main_tarfile(monkeypatch):
 
 def test_main_save(monkeypatch, tmpdir):
     destdir = tmpdir.strpath
-    args = ['--save', '--responses', destdir, url]
+    args = ['--save-dir', destdir, url]
     assert run_main(monkeypatch, args) == '"this"\t"that"\n'
 
     sentinel = object()

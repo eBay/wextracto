@@ -1,9 +1,27 @@
-#from .output import json_encode
+""" Extracted data values are represented with tab-separated fields.
+The right-most field on each line is the value, all preceding fields
+are labels that describe the value.
+The labels and the value are all JSON encoded.
+
+So for example, a value 9.99 with a labels ``product`` and ``price`` would 
+look like::
+
+    "product"\t"price"\t9.99\n
+
+And we could decode this line with the following Python snippet:
+
+.. code-block:: pycon
+
+    >>> import json
+    >>> line = '"product"\\t"price"\\t9.99\\n'
+    >>> [json.loads(s) for s in line.split('\t')]
+    [u'product', u'price', 9.99]
+
+Using tab-delimiters is convenient for downstream processing using Unix 
+command line tools such as :command:`cut` and :command:`grep`.
+"""
+
 import sys
-try:
-    import ipdb as pdb
-except ImportError:
-    import pdb
 from types import GeneratorType
 from json import JSONEncoder
 from functools import partial
@@ -37,6 +55,7 @@ json_encode = JSONEncoder(
 class Value(tuple):
 
     exit_on_exc = False
+    debug_on_exc = False
 
     value = property(itemgetter(-1))
     labels = property(itemgetter(slice(0, -1)))
@@ -76,6 +95,9 @@ def yield_values(extract, *args, **kw):
         exc_info = sys.exc_info()
         yield Value(exc)
 
-    if any(exc_info) and Value.exit_on_exc:
-        #raise exc_info[0], exc_info[1], exc_info[2]
-        pdb.post_mortem(exc_info[2])
+    if any(exc_info) and (Value.exit_on_exc or Value.debug_on_exc):
+        if Value.debug_on_exc:
+            import pdb
+            pdb.post_mortem(exc_info[2])
+        else:
+            raise exc_info[0], exc_info[1], exc_info[2]

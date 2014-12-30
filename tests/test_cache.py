@@ -4,13 +4,19 @@ import pytest
 
 @cached
 def cache_me(x):
-    return 3**2
+    return str(x)
 
 
 def test_cache():
     with Cache():
-        assert cache_me(3) == 9
-        assert cache_me(3) == 9
+        assert cache_me(3) == '3'
+        assert cache_me(3) == '3'
+
+def test_cache_unhashable():
+    with Cache():
+        assert cache_me([3]) == '[3]'
+        #assert cache_me([3) == 9
+
 
 
 def test_cache_attribute_error():

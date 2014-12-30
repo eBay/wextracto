@@ -1,4 +1,4 @@
-from wex.composed import composable, ComposedFunction
+from wex.composed import composable, ComposedCallable
 
 
 @composable
@@ -27,11 +27,11 @@ def test_composing_composed():
 
 def test_repr():
     func = squared | squared
-    assert repr(func).startswith('<wex.composed.ComposedFunction(')
+    assert repr(func).startswith('<wex.composed.ComposedCallable(')
 
 
-def test_composed_function_identity():
+def test_composed_callable_identity():
     # For the record and empty composed function is the identity function
-    func = ComposedFunction()
+    func = ComposedCallable()
     obj = object()
     assert func(obj) is obj

@@ -8,11 +8,21 @@ Wextracto
 
 Wextracto is a framework for data extraction from web resources.
 
-User Guide
-~~~~~~~~~~
+Tutorial
+--------
 
-The user guide introduces Wextracto and gives suggestions on how to use it.
-This is the place to start if you are new to Wextracto.
+The tutorial gives step-by-step instructions to get started with Wextracto.
+
+.. toctree::
+   :maxdepth: 2
+
+   tutorial
+
+
+User Guide
+----------
+
+The user guide.  TODO.
 
 .. toctree::
    :maxdepth: 2

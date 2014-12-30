@@ -46,7 +46,6 @@ def test_read():
     assert response.code == 200
     assert response.reason == 'OK'
     assert response.request_url == None
-    assert response.schedule == None
 
 
 def test_read_seek_read():

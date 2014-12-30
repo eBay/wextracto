@@ -1,7 +1,25 @@
-""" Wextracto command line (console) entry point. """
+""" The ``wex`` command extracts data from HTTP-like responses.
+These responses can come from files, directories or URLs specified on the 
+command line.  The command calls any :mod:`extractors <wex.extractor>` that have 
+been :mod:`registered <wex.entrypoints>` and writes any data extracted
+as :mod:`output <wex.output>`.
 
+The output and input can be saved, using the ``--save`` or ``--save-dir``
+command line arguments.  This is useful for 
+`regression testing <http://en.wikipedia.org/wiki/Regression_testing>`_.
+existing extractor functions.
+The test are run using :mod:`py.test <wex.pytestplugin>`.
+
+For the complete list of command line arguments run:
+
+.. code-block:: shell
+
+    $ wex --help
+
+"""
 from __future__ import absolute_import, unicode_literals, print_function
 import argparse
+from multiprocessing import cpu_count
 from pkg_resources import resource_filename
 from .readable import readables_from_paths
 from .processpool import do
@@ -19,18 +37,42 @@ argparser.add_argument(
     'paths',
     metavar='path',
     nargs='+',
-    help="url, directory or file from which to extract"
+    help="file, directory or url from which to extract"
 )
 
-process_pool_size = argparser.add_mutually_exclusive_group()
+save_group = argparser.add_argument_group("Save extraction input and output")
+
+save_excl_group = save_group.add_mutually_exclusive_group()
+
+save_excl_group.add_argument(
+    '-s', '--save',
+    action='store_const',
+    dest='save_dir',
+    const='saved',
+    default=False,
+    help="into directory 'saved'",
+)
+
+save_excl_group.add_argument(
+    '--save-dir',
+    dest='save_dir',
+    metavar="DIR",
+    help="into directory DIR",
+)
+
+process_pool_size_group = argparser.add_argument_group('Parallel processing using multiprocessing.Pool')
+
+process_pool_size = process_pool_size_group.add_mutually_exclusive_group()
+#process_pool_size = argparser.add_mutually_exclusive_group()
+#process_pool_size = argparser
 
 process_pool_size.add_argument(
     '-P',
     dest='process_pool_size',
     action="store_const",
-    const=None,
+    const=cpu_count(),
     default=1,
-    help="use multiprocessing pool",
+    help="with default pool size (default: %s)" % cpu_count(),
 )
 
 process_pool_size.add_argument(
@@ -39,34 +81,28 @@ process_pool_size.add_argument(
     metavar='N',
     type=int,
     default=1,
-    help="use multiprocessing pool with size of N",
+    help="with a pool size of N",
 )
 
-argparser.add_argument(
-    '--responses',
-    dest="responses_dir",
-    metavar="DIR",
-    default="responses",
-    help="use directory DIR for saved input and output",
-)
+on_exc_group = argparser.add_argument_group("When an exception occurs")
+on_exc = on_exc_group.add_mutually_exclusive_group()
 
-argparser.add_argument(
-    '-s', '--save',
-    action='store_true',
-    default=False,
-    help="save response input and extraction output",
-)
-
-argparser.add_argument(
+on_exc.add_argument(
     '-x', '--exit-on-exc',
     action="store_true",
     default=False,
-    help="exit when an exception occurs during extraction",
+    help="exit with a traceback",
+)
+
+on_exc.add_argument(
+    '-d', '--debug-on-exc',
+    action="store_true",
+    default=False,
+    help="start the debugger",
 )
 
 
-
-class WriteExtracted(object):
+class WriteExtractedValues(object):
 
     def __init__(self, context, extract):
         self.context = context
@@ -77,17 +113,17 @@ class WriteExtracted(object):
 
 
 def main():
-    """ The main 'wex' command """
 
     import logging.config ; logging.config.fileConfig(default_logging_conf)
 
     args = argparser.parse_args()
     extract = extractor_from_entry_points()
-    if args.save:
-        func = WriteExtracted(TeeStdOut, extract)
+    if args.save_dir:
+        func = WriteExtractedValues(TeeStdOut, extract)
     else:
-        func = WriteExtracted(StdOut, extract)
+        func = WriteExtractedValues(StdOut, extract)
     Value.exit_on_exc = args.exit_on_exc
+    Value.debug_on_exc = args.debug_on_exc
 
-    readables = readables_from_paths(args.paths, args.save, args.responses_dir)
+    readables = readables_from_paths(args.paths, args.save_dir)
     do(func, readables, pool_size=args.process_pool_size)

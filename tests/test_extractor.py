@@ -99,7 +99,7 @@ def test_labelled_attributes():
 
 def test_attributes():
     attr = Attributes()
-    attr.add('foo', lambda v: v)
+    attr.add(lambda v: v, 'foo')
     actual = list(attr('bar'))
     expected = [('foo', 'bar')]
     assert actual == expected
@@ -120,7 +120,7 @@ def test_len():
 
 def test_attribute_add_as_decorator():
     attr = Attributes()
-    @attr.attribute
+    @attr.add
     def foo(value):
         return value
     actual = list(attr('bar'))

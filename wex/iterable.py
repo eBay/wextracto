@@ -53,8 +53,9 @@ def one_or_none(iterable):
 
 @composable
 def flatten(iterable):
-    return chain.from_iterable(iterable)
+    subiterables = ((flatten(i) if hasattr(i, '__iter__') else (i,)) for i in iterable)
+    return chain.from_iterable(subiterables)
 
 
-def map(func, *args, **kwargs):
+def partial_map(func, *args, **kwargs):
     return composable(partial(map_, func, *args, **kwargs))
