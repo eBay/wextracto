@@ -12,9 +12,10 @@ Installation
     $ pip install wextracto
 
 
-Running
-~~~~~~~
+Kicking the Tyres
+~~~~~~~~~~~~~~~~~
 
-.. code-block:: bash
+.. code-block:: shell
 
+    $ echo -e "[wex]\nsitemaps=wex.sitemaps:urls_from_sitemaps" > entry_points.txt
     $ wex "http://www.ebay.com/robots.txt"
