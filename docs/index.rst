@@ -22,7 +22,7 @@ The tutorial gives step-by-step instructions to get started with Wextracto.
 User Guide
 ----------
 
-The user guide.  TODO.
+The user guide gives broad general guidance about how to use Wextracto.
 
 .. toctree::
    :maxdepth: 2

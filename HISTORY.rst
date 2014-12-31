@@ -3,6 +3,11 @@
 Release History
 ---------------
 
+0.3 (2014-12-29)
+++++++++++++++++++
+
+* Some API changes + switch to "tab-separated JSON".
+
 0.2.2 (2014-10-24)
 ++++++++++++++++++
 
