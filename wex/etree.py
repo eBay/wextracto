@@ -18,7 +18,6 @@ from lxml.html import HTMLParser, XHTML_NAMESPACE
 
 from .composed import composable
 from .cache import cached
-from .iterable import one_or_none
 
 SKIP = object()
 skip = partial(is_, SKIP)

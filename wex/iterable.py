@@ -8,15 +8,21 @@ from .composed import composable
 
 
 class ZeroValuesError(ValueError):
-    """ Zero values were found. """
+    """ Zero values were found when at least one was expected. """
 
 
 class MultipleValuesError(ValueError):
-    """ More than one value was found. """
+    """ More than one value was found when one or none were expected. """
 
 
 @composable
 def first(iterable):
+    """ Returns first item from an iterable.
+
+    :param iterable: The iterable.
+
+    If the iterable is empty then ``None`` is returned.
+    """
     if not hasattr(iterable, '__iter__'):
         # turns out it isn't iterable after all
         return iterable

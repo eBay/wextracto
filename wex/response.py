@@ -2,9 +2,9 @@ from __future__ import unicode_literals, print_function, absolute_import
 from tempfile import TemporaryFile
 from shutil import copyfileobj
 from io import BytesIO
-from six import PY2
 from six.moves.urllib.response import addinfourl
 from six.moves.http_client import BadStatusLine
+from .py2compat import parse_headers
 from .cache import Cache
 from .value import yield_values
 
@@ -12,38 +12,24 @@ from .value import yield_values
 DEFAULT_READ_SIZE = 2**16  # 64K
 MAX_IN_MEMORY_SIZE = 2**29      # 512M
 
-if PY2:
-
-    from httplib import HTTPMessage
-
-    def parse_headers(fp):
-        return HTTPMessage(fp, 0)
-
-else:
-
-    from http.client import parse_headers
 
 
 class Response(addinfourl):
     """ A urllib2 style Response with some extras. 
 
-        :param fp: A file-like object containing the response content.
-        :param headers: The response headers.
-        :param str url: The URL of the response.
-        :param int code: The status code of the responce (e.g. 200).
-        :param int protocol: The protocol of the response (e.g. "HTTP/1.1").
-        :param int reason: The reason (e.g. "OK").
-        :param str request_url: The initial URL that lead to the response.
-                                In the presence of multiple responses to
-                                a request, for example redirects, this may 
-                                be different to the ``url`` parameter.
+        :param content: A file-like object containing the response content.
+        :param headers: An HTTPMessage containing the response headers.
+        :param url: The URL for which this is the response.
+        :param code: The status code recieved with this response.
+        :param protocol: The protocol received with this response.
+        :param version: The protocol version received with this response.
+        :param reason: The reason received with this response.
+        :param request_url: The URL requested that led to this response.
     """
 
-    def __init__(self, fp, headers, **kw):
-        self.request_url = kw.pop('request_url', headers.get('x-wex-request-url'))
-        addinfourl.__init__(self, fp, headers,
-                            kw.pop('url', headers.get('x-wex-url', self.request_url)),
-                            kw.pop('code', None))
+    def __init__(self, content, headers, url, code=None, **kw):
+        addinfourl.__init__(self, content, headers, url, code)
+        self.request_url = kw.pop('request_url', None)
         self.protocol = kw.pop('protocol', None)
         self.version = kw.pop('version', None)
         self.reason = kw.pop('reason', None)
@@ -67,16 +53,19 @@ class Response(addinfourl):
                 yield value
 
     @classmethod
-    def from_readable(cls, readable, **kw):
+    def from_readable(cls, readable):
         status_line = readable.readline()
         protocol, version, code, reason = cls.parse_status_line(status_line)
         headers = parse_headers(readable)
+        request_url = headers.getheader('X-wex-request-url')
+        url = headers.getheader('X-wex-url', request_url)
         content = cls.content_file(readable, headers)
-        return Response(content, headers, protocol=protocol.decode('UTF-8'),
-                                          version=version,
+        return Response(content, headers, url,
                                           code=code,
+                                          protocol=protocol.decode('UTF-8'),
+                                          version=version,
                                           reason=reason.decode('UTF-8'),
-                                          **kw)
+                                          request_url=request_url)
 
     @staticmethod
     def parse_status_line(status_line, field_defaults=['']*3):

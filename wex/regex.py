@@ -8,7 +8,7 @@ for name in dir(re):
         setattr(sys.modules[__name__], name, getattr(re, name))
 
 
-def group(pattern, group=1, flags=0):
+def re_group(pattern, group=1, flags=0):
     """
     Returns a :mod:`composable <wex.composed>` callable that 
     extract the specified group using a regular expression.
@@ -31,7 +31,7 @@ def group(pattern, group=1, flags=0):
     return regroup
 
 
-def groupdict(pattern, flags=0):
+def re_groupdict(pattern, flags=0):
     """
     Returns a :mod:`composable <wex.composed>` callable that 
     extract the a group dictionary using a regular expression.

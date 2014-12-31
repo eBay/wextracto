@@ -10,7 +10,7 @@ import six
 
 if six.PY2:
 
-    from six.moves.http_client import HTTPMessage
+    from httplib import HTTPMessage
 
     def get_content_subtype(self):
         return self.getsubtype()
@@ -19,3 +19,12 @@ if six.PY2:
     def get_content_charset(self):
         return self.getparam('charset')
     HTTPMessage.get_content_charset = get_content_charset
+
+
+    def parse_headers(fp):
+        return HTTPMessage(fp, 0)
+
+else:
+
+    from http.client import parse_headers  # pragma: no cover
+    assert parse_headers                   # pragma: no cover
