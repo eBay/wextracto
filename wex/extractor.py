@@ -110,8 +110,7 @@ def labelled(*literals_or_callables):
 
     def labelled_extractor_decorator(extractor):
         @wraps(extractor)
-        def labelled_extractor_wrapper(arg0, *args, **kw):
-
+        def labelled_extractor(arg0, *args, **kw):
             labels = [call(label, arg0) for label in literals_or_callables]
             if not all(labels):
                 # one or more missing labels so don't yield
@@ -120,7 +119,7 @@ def labelled(*literals_or_callables):
             for value in yield_values(extractor, arg0, *args, **kw):
                 yield value.label(*labels)
 
-        return labelled_extractor_wrapper
+        return labelled_extractor
 
     return labelled_extractor_decorator
 
