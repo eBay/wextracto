@@ -14,7 +14,7 @@ And we could decode this line with the following Python snippet:
 
     >>> import json
     >>> line = '"product"\\t"price"\\t9.99\\n'
-    >>> [json.loads(s) for s in line.split('\t')]
+    >>> [json.loads(s) for s in line.split('\\t')]
     [u'product', u'price', 9.99]
 
 Using tab-delimiters is convenient for downstream processing using Unix 
