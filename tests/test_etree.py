@@ -7,7 +7,7 @@ from wex import etree as e
 from wex.iterable import flatten
 
 example = b"""HTTP/1.1 200 OK
-X-wex-url: http://some.com/
+X-wex-request-url: http://some.com/
 
 <html>
   <head>
@@ -34,7 +34,7 @@ X-wex-url: http://some.com/
 """
 
 example_with_dodgy_url = b"""HTTP/1.1 200 OK
-X-wex-url: http://foo.com/bar[]/baz/
+X-wex-request-url: http://foo.com/bar[]/baz/
 
 <html>
   <body>
