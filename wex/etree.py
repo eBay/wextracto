@@ -9,15 +9,18 @@ import wex.py2compat ; assert wex.py2compat
 from six.moves.urllib_parse import urljoin, quote, unquote
 from functools import partial
 from operator import is_, methodcaller
+import codecs
 
 from six.moves import reduce
 
 from lxml.etree import XPath, _ElementTree, Element
 from lxml.cssselect import CSSSelector
-from lxml.html import HTMLParser, XHTML_NAMESPACE
+from lxml.html import XHTML_NAMESPACE, HTMLParser
 
 from .composed import composable
 from .cache import cached
+from .iterable import flatten
+from .ncr import NumCharRefFixer
 
 SKIP = object()
 skip = partial(is_, SKIP)
@@ -56,6 +59,11 @@ def parse(src):
     if not hasattr(src, 'read'):
         return src
     charset = src.headers.get_content_charset()
+    try:
+        if charset and codecs.lookup(charset).name == 'iso8859-1':
+            charset = 'windows-1252'
+    except LookupError:
+        pass
     etree = _ElementTree()
     # if charset is not specified in the Content-Type, this will be
     # None ; encoding=None produces default (ISO 8859-1) behavior.
@@ -67,7 +75,7 @@ def parse(src):
         # We don't want to have to check for this so we just always
         # quote it here and then unquote it in the `base_url` function.
         quoted_base_url = quote(src.url) if src.url else src.url
-        etree.parse(src, parser=parser, base_url=quoted_base_url)
+        etree.parse(NumCharRefFixer(src), parser=parser, base_url=quoted_base_url)
     except IOError as exc:
         logging.getLogger(__name__).warning("IOError parsing %s (%s)", src.url, exc)
     root = etree.getroot()
@@ -190,6 +198,9 @@ def itertext(src):
 #: A :class:`wex.composed.ComposedFunction` that returns the whitespace 
 #: normalized text from one element.
 text = itertext | normalize_space
+
+#: A :class:`wex.composed.ComposedCallable` that yields text.
+text_nodes = itertext | flatten
 
 #: A :class:`wex.composed.ComposedFunction` that returns the whitespace 
 #: normalized text from zero or more elements joined with a space.

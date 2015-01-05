@@ -22,13 +22,13 @@ command line tools such as :command:`cut` and :command:`grep`.
 """
 
 import sys
-from types import GeneratorType
 from json import JSONEncoder
 from functools import partial
 from operator import itemgetter
 from six import PY2, text_type
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
+from .iterable import flatten
 
 
 TAB = '\t'
@@ -86,11 +86,8 @@ def yield_values(extract, *args, **kw):
 
     try:
         res = extract(*args, **kw)
-        if type(res) is GeneratorType:
-            for val in res:
-                yield Value(val)
-        else:
-            yield Value(res)
+        for val in flatten(res, (list, tuple)):
+            yield Value(val)
     except Exception as exc:
         exc_info = sys.exc_info()
         yield Value(exc)
