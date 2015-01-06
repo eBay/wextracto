@@ -21,11 +21,7 @@ def re_group(pattern, group=1, flags=0):
     compiled = re.compile(pattern, flags)
     @composable
     def regroup(src):
-        if hasattr(src, '__iter__'):
-            strings = flatten(src)
-        else:
-            strings = [src]
-        for string in strings:
+        for string in flatten(src):
             for match in compiled.finditer(string):
                 yield match.group(group)
     return regroup
@@ -44,11 +40,7 @@ def re_groupdict(pattern, flags=0):
     compiled = re.compile(pattern, flags)
     @composable
     def redict(src):
-        if hasattr(src, '__iter__'):
-            strings = flatten(src)
-        else:
-            strings = [src]
-        for string in strings:
+        for string in flatten(src):
             for match in compiled.finditer(string):
                 yield match.groupdict()
     return redict

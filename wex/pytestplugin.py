@@ -83,7 +83,7 @@ class WexinFile(pytest.File):                        # pragma: no cover
         with self.fspath.open('rb') as readable:
             for value in Response.values_from_readable(extract, readable):
                 text = value.text()
-                labels, _, value = text.rpartition(b'\t')
+                labels, _, value = text.rpartition(TAB)
                 values.setdefault(labels, set()).add(value.strip())
         return values
 

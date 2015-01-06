@@ -27,7 +27,6 @@ setup(
         'lxml>=3',
         'cssselect',
         'publicsuffix',
-        'html5lib',
     ],
     classifiers=(
         'Development Status :: 4 - Beta',

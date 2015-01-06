@@ -57,8 +57,8 @@ class Response(addinfourl):
         status_line = readable.readline()
         protocol, version, code, reason = cls.parse_status_line(status_line)
         headers = parse_headers(readable)
-        request_url = headers.getheader('X-wex-request-url')
-        url = headers.getheader('X-wex-url', request_url)
+        request_url = headers.get('X-wex-request-url')
+        url = headers.get('X-wex-url', request_url)
         content = cls.content_file(readable, headers)
         return Response(content, headers, url,
                                           code=code,

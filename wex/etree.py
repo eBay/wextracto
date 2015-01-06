@@ -6,6 +6,7 @@ Composable functions for extracting data using
 from __future__ import absolute_import, unicode_literals, print_function
 import logging
 import wex.py2compat ; assert wex.py2compat
+from six import string_types
 from six.moves.urllib_parse import urljoin, quote, unquote
 from functools import partial
 from operator import is_, methodcaller
@@ -20,7 +21,7 @@ from lxml.html import XHTML_NAMESPACE, HTMLParser
 from .composed import composable
 from .cache import cached
 from .iterable import flatten
-from .ncr import NumCharRefFixer
+from .ncr import replace_invalid_ncr
 
 SKIP = object()
 skip = partial(is_, SKIP)
@@ -75,9 +76,11 @@ def parse(src):
         # We don't want to have to check for this so we just always
         # quote it here and then unquote it in the `base_url` function.
         quoted_base_url = quote(src.url) if src.url else src.url
-        etree.parse(NumCharRefFixer(src), parser=parser, base_url=quoted_base_url)
+        fp = replace_invalid_ncr(src)
+        etree.parse(fp, parser=parser, base_url=quoted_base_url)
     except IOError as exc:
-        logging.getLogger(__name__).warning("IOError parsing %s (%s)", src.url, exc)
+        logger = logging.getLogger(__name__)
+        logger.warning("IOError parsing %s (%s)", src.url, exc)
     root = etree.getroot()
     if root is None:
         etree._setroot(UNPARSEABLE)
@@ -167,18 +170,18 @@ def normalize_space(src):
 
     If ``src`` is iterable then a generator will be returned.
     """
-    if hasattr(src, '__iter__'):
-        return (normalize_space_and_join(s) for s in src)
-    return space_join(src.split())
+    if isinstance(src, string_types):
+        return space_join(src.split())
+    return (normalize_space_and_join(s) for s in src)
 
 
 @composable
 def normalize_space_and_join(src):
     """ Return a string of space-normalized text content. """
-    if hasattr(src, '__iter__'):
-        normalized = [normalize_space_and_join(s) for s in src]
-        return space_join((s for s in normalized if s.strip()))
-    return space_join(src.split())
+    if isinstance(src, string_types):
+        return space_join(src.split())
+    normalized = [normalize_space_and_join(s) for s in src]
+    return space_join((s for s in normalized if s.strip()))
 
 
 @composable
@@ -190,7 +193,7 @@ def itertext(src):
     if hasattr(src, 'itertext'):
         # using '*' to exclude comments
         return (t for t in src.itertext('*'))
-    elif hasattr(src, '__iter__'):
+    elif hasattr(src, '__iter__') and not isinstance(src, string_types):
         return (itertext(s) for s in src)
     return src
 
