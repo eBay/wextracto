@@ -25,7 +25,7 @@ import sys
 from json import JSONEncoder
 from functools import partial
 from operator import itemgetter
-from six import PY2, text_type
+from six import PY2, text_type, reraise, string_types
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
 from .iterable import flatten
@@ -86,7 +86,7 @@ def yield_values(extract, *args, **kw):
 
     try:
         res = extract(*args, **kw)
-        for val in flatten(res, (list, tuple)):
+        for val in flatten(res, (list, tuple) + string_types):
             yield Value(val)
     except Exception as exc:
         exc_info = sys.exc_info()
@@ -97,4 +97,4 @@ def yield_values(extract, *args, **kw):
             import pdb
             pdb.post_mortem(exc_info[2])
         else:
-            raise exc_info[0], exc_info[1], exc_info[2]
+            reraise(exc_info[0], exc_info[1], exc_info[2])

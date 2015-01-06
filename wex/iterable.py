@@ -3,7 +3,7 @@
 from types import GeneratorType
 from functools import partial
 from itertools import islice as islice_
-from six import next
+from six import next, string_types
 from six.moves import map
 from .composed import composable
 
@@ -62,7 +62,7 @@ def one_or_none(iterable):
         return None
 
 @composable
-def gen(obj, yieldable=()):
+def gen(obj, yieldable=string_types):
     """ Return a generator. """
     if isinstance(obj, GeneratorType):
         return obj
@@ -72,7 +72,7 @@ def gen(obj, yieldable=()):
 
 
 @composable
-def flatten(obj, yieldable=()):
+def flatten(obj, yieldable=string_types):
     """ Yield sub-objects from obj. """
     stack = [gen(obj)]
     while stack:

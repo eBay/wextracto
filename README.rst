@@ -1,6 +1,10 @@
 Wextracto: Web Data Extraction
 ==============================
 
+.. image:: https://travis-ci.org/gilessbrown/wextracto.svg
+    :target: http://travis-ci.org/gilessbrown/wextracto
+    :alt: Build Status
+
 Wextracto is a toolkit for command-line web data extraction.
 
 
