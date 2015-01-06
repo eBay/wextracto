@@ -1,5 +1,5 @@
 from pkg_resources import working_set, resource_stream, resource_filename
-from wex.extractor import labelled, chained, Attributes
+from wex.extractor import labelled, Chain, Attributes
 from wex.response import Response
 
 
@@ -47,16 +47,16 @@ def extract_with_error(arg0):
     raise error
 
 
-def test_chained_error():
-    extract = chained(extract_with_error)
+def test_chain_error():
+    extract = Chain(extract_with_error)
     items = list(extract('foo'))
     assert items == [(error,)]
 
 
-def test_chained_seek():
+def test_chain_seek():
     readable = resource_stream(__name__, 'fixtures/robots_txt')
     response = Response.from_readable(readable)
-    extract = chained(extract_first_line, extract_first_line)
+    extract = Chain(extract_first_line, extract_first_line)
     values = list(extract(response))
     assert values == [(b'# /robots.txt\n',), (b'# /robots.txt\n',)]
 
@@ -85,7 +85,7 @@ def test_labelled_error():
 def test_labelled_chain():
     # bug test
     labeller  = (lambda x: x)
-    extract = labelled(labeller)(chained(extract_arg0))
+    extract = labelled(labeller)(Chain(extract_arg0))
     assert list(extract("foo")) == [("foo", "foo")]
 
 

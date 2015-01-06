@@ -19,8 +19,10 @@ from .value import yield_values
 OMITTED = object()
 
 
-def chained(*extractors):
-    """ Returns an extractor that chains the output of other extractors.
+class Chain(object):
+    """ A chain of extractors.
+
+    The output is the output from each extractor in sequence.
 
     :param extractors: an iterable of extractor callables to chain
 
@@ -34,7 +36,7 @@ def chained(*extractors):
         def extract2(response):
             yield "two"
 
-        extract = chained(extract1, extract2)
+        extract = Chain(extract1, extract2)
 
     Would produce the following extraction output:
 
@@ -45,10 +47,6 @@ def chained(*extractors):
         "two"
 
     """
-    return ChainedExtractors(extractors)
-
-
-class ChainedExtractors(object):
 
     @property
     def __name__(self):
@@ -57,8 +55,8 @@ class ChainedExtractors(object):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.extractors)
 
-    def __init__(self, extractors):
-        self.extractors = extractors
+    def __init__(self, *extractors):
+        self.extractors = list(extractors)
 
     def __call__(self, arg0, *args, **kw):
         seek = getattr(arg0, 'seek', None)
@@ -68,6 +66,19 @@ class ChainedExtractors(object):
             values = yield_values(extractor, arg0, *args, **kw)
             for value in values:
                 yield value
+
+    def append(self, extractor):
+        self.extractors.append(extractor)
+        return extractor
+
+    def insert(self, index, extractor=None):
+        def decorator(func):
+            self.insert(index, func)
+        if extractor is None:
+            return decorator
+        else:
+            return decorator(extractor)
+
 
 
 def labelled(*literals_or_callables):
