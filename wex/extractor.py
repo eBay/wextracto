@@ -81,7 +81,7 @@ class Chain(object):
 
 
 
-def labelled(*literals_or_callables):
+def label(*label_literals_or_callables):
     """ Returns a decorator that will label the output an extractor.
 
     :param literals_or_callables: An iterable of labels or callables.
@@ -102,7 +102,7 @@ def labelled(*literals_or_callables):
             return "label2"
 
 
-        extract = labelled("label1", label2)(extract1)
+        extract = label("label1", label2)(extract1)
 
     Would produce the following extraction output:
 
@@ -119,10 +119,10 @@ def labelled(*literals_or_callables):
     def call(label, arg0):
         return (label(arg0) if hasattr(label, '__call__') else label)
 
-    def labelled_extractor_decorator(extractor):
+    def label_decorator(extractor):
         @wraps(extractor)
         def labelled_extractor(arg0, *args, **kw):
-            labels = [call(label, arg0) for label in literals_or_callables]
+            labels = [call(l, arg0) for l in label_literals_or_callables]
             if not all(labels):
                 # one or more missing labels so don't yield
                 return
@@ -132,7 +132,7 @@ def labelled(*literals_or_callables):
 
         return labelled_extractor
 
-    return labelled_extractor_decorator
+    return label_decorator
 
 
 class Attributes(object):
