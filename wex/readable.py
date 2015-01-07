@@ -149,11 +149,13 @@ class TeeReadable(object):
         return buf
 
     def close(self):
-        chunk_size = 2**16
-        while True:
-            chunk = self.read(chunk_size)
-            if not chunk:
-                break
+        if not getattr(self.readable, 'closed', False):
+            # read remainder so tee gets everything
+            chunk_size = 2**16
+            while True:
+                chunk = self.read(chunk_size)
+                if not chunk:
+                    break
         self.readable.close()
         self.tee.close()
 

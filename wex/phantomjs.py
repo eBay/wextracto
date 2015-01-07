@@ -2,28 +2,41 @@ import os
 import subprocess
 import tempfile
 import json
-from contextlib import closing
 from pkg_resources import resource_filename
 
-js = os.path.abspath(resource_filename(__name__, 'phantomjs.js'))
-cmd = ['phantomjs', '--disk-cache=true', js]
-#cmd = ['phantomjs', js]
 
-def request(url, method, session=None, **kw):
+default_settings = {
+    'loadImages': False,
+    'resourceTimeout': 60000,
+}
+
+
+phantomjs_js = os.path.abspath(resource_filename(__name__, 'phantomjs.js'))
+cmd = ['phantomjs', phantomjs_js]
+
+
+def request_using_phantomjs(url, method, session=None, **kw):
     phantomjs = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    path = os.path.join(tempfile.gettempdir(),
-                        'wex.phantomjs.{}.fifo'.format(os.getpid()))
-    os.mkfifo(path)
-    # PhantomJS seems to send the fragment and we don't want that
-    url = dict(url=url.partition('#')[0], wex_url=url, wexout=path)
-    phantomjs.stdin.write(json.dumps(url) + "\n")
+    fifo_path = mkfifo(phantomjs)
+    settings = dict(default_settings)
+    url_without_fragment = url.partition('#')[0]
+    request = {
+        'timeout': 60000,
+        'url': url_without_fragment,
+        'wex_url': url,
+        'wexout': fifo_path,
+        'settings': settings,
+    }
+    phantomjs.stdin.write(json.dumps(request) + '\n')
     phantomjs.stdin.flush()
-    with closing(open(path, 'r')) as readable:
-        yield readable
+    try:
+        yield open(fifo_path, 'r')
+    finally:
+        os.unlink(fifo_path)
 
-if __name__ == '__main__':
-    import sys
-    for url in sys.argv[1:]:
-        for readable in request(url, None):
-            sys.stdout.write(readable.read())
 
+def mkfifo(phantomjs):
+    basename = 'wex.phantomjs.{}.{}.fifo'.format(os.getpid(), phantomjs.pid)
+    fifo_path = os.path.join(tempfile.gettempdir(), basename)
+    os.mkfifo(fifo_path)
+    return fifo_path

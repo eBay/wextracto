@@ -1,21 +1,11 @@
 /*
- * phantomjs.js - A tool for dumping the rendered web page DOM.
- *
- * It is designed for use from controlling process, but you can try it yourself:
- *     $ phantomjs dumpdom.js
- *     {"url": "http://httpbin.org/html"}<enter>
- *     {[....]}
+ * phantomjs.js - inter-process communication between Wextracto and PhantomJS
  *
  */
 
 var system = require('system')
 var fs = require('fs')
 var webpage = require('webpage')
-var defaults = {
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.153 Safari/537.36',
-    viewportSize: {width: 1024, height:768}
-}
-var jquery = 'http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'
 
 /**
  * Read request from STDIN, parse it and perform it.
@@ -34,7 +24,7 @@ function handle_request() {
     }
     try {
         request = JSON.parse(line)
-        perform_request(request)
+        performRequest(request)
     }
     catch (err) {
         system.stderr.writeLine(err);
@@ -44,7 +34,9 @@ function handle_request() {
 
 
 function onConsoleMessage(msg) {
-    system.stderr.writeLine("[phantomjs.onConsoleMessage] " + msg);
+    if (!msg.startsWith('Unsafe JavaScript attempt to access frame')) {
+        system.stderr.writeLine("[phantomjs.onConsoleMessage] " + msg);
+    }
 }
 
 
@@ -52,48 +44,42 @@ function onError(msg, trace) {
     system.stderr.writeLine("[phantomjs.onError] " + msg);
 }
 
+function configurePageSettings(page, request) {
+    var settings = request.settings || {};
+    for (var setting in settings) {
+        if (!settings.hasOwnProperty) {
+            continue;
+        }
+        page.settings[setting] = settings[setting];
+    }
+}
 
 /**
  * Open the page and set-up a callback for when the results come in.
  */
-function perform_request(request) {
-
-    var consoleMessages = Array();
+function performRequest(request) {
 
     page = webpage.create();
-    page.viewportSize = request.viewportSize || defaults.viewportSize;
-    page.settings.userAgent = request.userAgent || defaults.userAgent;
+    configurePageSettings(page, request);
     page.onConsoleMessage = onConsoleMessage;
     page.onError = onError ;
 
     page.onLoadStarted = function() {
-        console.log('onLoadStarted');
-        page.loadTimeout = setTimeout(
-            function() {
-                system.stderr.writeLine("[phantomjs] '" + request.url + "' timeout");
-                phantom.exit(1);
-            },
-            request.timeout || 60000
-        )
-    }
-
-    page.onNavigationRequested = function(url, type, willNavigate, main) {
-        console.log('Trying to navigate to: ' + url);
-      //#console.log('Caused by: ' + type);
-      //#console.log('Will actually navigate: ' + willNavigate);
-      //#console.log('Sent from the page\'s main frame: ' + main);
+        var href = page.evaluate(function() { return window.location.href; });
+        if (href === "about:blank") {
+            page.loadTimeout = setTimeout(
+                function() {
+                    system.stderr.writeLine("[phantomjs] '" + request.url + "' timeout");
+                    phantom.exit(1);
+                },
+                request.timeout || 60000
+            );
+        }
     }
 
     wexout = fs.open(request.wexout, 'w');
 
     page.onResourceReceived = function(response) {
-
-        console.log("RECEIVED:" +  response.url + response.status);
-
-        if (response.status != 200) {
-            var line = "received: " + response.url + " - " + response.status;
-            system.stderr.writeLine(line);
-        }
 
         if (response.stage != "end" || response.id != 1) {
             // this isn't the resource we're looking for
@@ -107,7 +93,8 @@ function perform_request(request) {
             wexout.writeLine(header.name + ": " + header.value + "\r");
         }
 
-        wexout.writeLine("X-wex-url: " + request.wex_url + "\r");
+        wexout.writeLine("X-wex-request-url: " + request.wex_url + "\r");
+        wexout.writeLine("X-wex-url: " + response.url + "\r");
         wexout.writeLine("\r");
         wexout.flush();
     }
@@ -115,40 +102,15 @@ function perform_request(request) {
     page.open(
         request.url,
         function onPageOpenFinished(status) {
-            console.log("HELLO");
+            wexout.write(page.content);
+            wexout.flush();
+            wexout.close();
             clearTimeout(page.loadTimeout);
-            page.includeJs(
-                jquery,
-                function() {
-                    page.evaluate(
-                        function() {
-                            console.log("INSIDE");
-                            console.log("XX:" + $("input[autocomplete=off]").val("mixer").parents("form:first").submit());
-                            console.log("SUBMIT");
-                            //window.jq211 = jQuery.noConflict();
-                            //console.log("INSIDE:" + window.jq211);
-                        }
-                    );
-                    wexout.close();
-                }
-            );
-            //console.log(" hello " + window.jq211);
-            //            //wexout.write(page.content);
-            //            //wexout.flush();
-            //            //wexout.close();
-            //            ////phantom.exit();
-            //        }
-            //    );
-            //}
-            //wexout.write(page.content);
-            //wexout.flush();
-            //wexout.close();
+            phantom.exit();
         }
     );
 }
 
 
-/**
- * Let's get this party started!
- */
+/* Let's get this party started!  */
 handle_request()
