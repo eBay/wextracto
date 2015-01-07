@@ -1,0 +1,2 @@
+[wex]
+extract = tutorial:extract

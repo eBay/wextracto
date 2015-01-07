@@ -1,16 +1,34 @@
-#from .output import json_encode
+""" Extracted data values are represented with tab-separated fields.
+The right-most field on each line is the value, all preceding fields
+are labels that describe the value.
+The labels and the value are all JSON encoded.
+
+So for example, a value 9.99 with a labels ``product`` and ``price`` would 
+look like::
+
+    "product"\t"price"\t9.99\n
+
+And we could decode this line with the following Python snippet:
+
+.. code-block:: pycon
+
+    >>> import json
+    >>> line = '"product"\\t"price"\\t9.99\\n'
+    >>> [json.loads(s) for s in line.split('\\t')]
+    [u'product', u'price', 9.99]
+
+Using tab-delimiters is convenient for downstream processing using Unix 
+command line tools such as :command:`cut` and :command:`grep`.
+"""
+
 import sys
-from types import GeneratorType
 from json import JSONEncoder
 from functools import partial
 from operator import itemgetter
-from itertools import chain
-from six import PY2, text_type
+from six import PY2, text_type, reraise, string_types
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
-
-
-exit_on_first_exception = False
+from .iterable import flatten
 
 
 TAB = '\t'
@@ -36,6 +54,9 @@ json_encode = JSONEncoder(
 
 class Value(tuple):
 
+    exit_on_exc = False
+    debug_on_exc = False
+
     value = property(itemgetter(-1))
     labels = property(itemgetter(slice(0, -1)))
 
@@ -46,11 +67,13 @@ class Value(tuple):
 
     def text(self):
         """ Returns the text this value as a labelled JSON line. """
-        try:
-            encoded = json_encode(self.value)
-        except:
-            encoded = '#' + text_type(repr(self.value)) + '!'
-        return TAB.join(chain(map(text_type, self.labels), (encoded,))) + NL
+        encoded = []
+        for field in self:
+            try:
+                encoded.append(json_encode(field))
+            except TypeError:
+                encoded.append('#' + text_type(repr(self.value)) + '!')
+        return TAB.join(encoded) + NL
 
     def label(self, *labels):
         """ Adds zero or more labels to this value. """
@@ -63,14 +86,15 @@ def yield_values(extract, *args, **kw):
 
     try:
         res = extract(*args, **kw)
-        if type(res) is GeneratorType:
-            for val in res:
-                yield Value(val)
-        else:
-            yield Value(res)
+        for val in flatten(res, (list, tuple) + string_types):
+            yield Value(val)
     except Exception as exc:
         exc_info = sys.exc_info()
         yield Value(exc)
 
-    if any(exc_info) and exit_on_first_exception:
-        raise exc_info
+    if any(exc_info) and (Value.exit_on_exc or Value.debug_on_exc):
+        if Value.debug_on_exc:
+            import pdb
+            pdb.post_mortem(exc_info[2])
+        else:
+            reraise(exc_info[0], exc_info[1], exc_info[2])

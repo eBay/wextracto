@@ -42,6 +42,20 @@ def test_flatten():
     assert list(i.flatten([['a'], ['b']])) == ['a', 'b']
 
 
-def test_map():
-    f = i.map(str) | list
+def test_flatten_string():
+    # A string isn't considered iterable so nothing should happen
+    assert list(i.flatten('abc')) == ['abc']
+
+
+def test_flatten_nested():
+    assert list(i.flatten([['a'], ['b', 'c']])) == ['a', 'b', 'c']
+
+
+def test_flatmap():
+    f = i.flatmap(str) | list
     assert f(range(2)) == ['0', '1']
+
+
+def test_islice():
+    f = i.islice(1) | list
+    assert f(range(2)) == [0]

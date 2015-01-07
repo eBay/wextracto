@@ -1,6 +1,37 @@
 """
-``Wextracto`` extraction output contains one, JSON encoded, value per line.
-Each value may be prefixed by zero or more keys to identify the value.
+URL Labelling
+^^^^^^^^^^^^^
+
+The convention for Wextracto is that any URL that should be downloaded 
+is has the left-most label ``url``.  For example::
+
+        "url"\t"http://example.net/some/url"
+
+Data Labelling
+^^^^^^^^^^^^^^
+
+If you are extracting multiple types of data (for example people and 
+addresses) then a good labelling scheme is important.
+
+It is a good idea to label the extracted values so that you can sort them
+easily using the Unix :command:`sort` command.
+
+An example of a labelling scheme that allows this would be::
+
+    {type}\t{identifier}\t{attribute}\t{value}
+
+So we might end up with output that look like this::
+
+    "person"\t"http://example.net/person/1"\t"name"\t"Tom Bombadil"
+    "person"\t"http://example.net/person/1"\t"email"\t"tom1@example.net"
+    "address"\t"http://example.net/address/2"\t"city"\t"New York"
+    "address"\t"http://example.net/address/2"\t"postal code"\t"10001"
+    "person"\t"http://example.net/person/3"\t"name"\t"Jack Sprat"
+    "person"\t"http://example.net/person/3"\t"email"\t"jack3@example.net"
+    "address"\t"http://example.net/address/4"\t"city"\t"London"
+    "address"\t"http://example.net/address/4"\t"postal code"\t"E14 5AB"
+
+With output like this we can easily sort and group it.
 """
 
 from __future__ import absolute_import, unicode_literals, print_function

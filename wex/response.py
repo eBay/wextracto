@@ -2,9 +2,9 @@ from __future__ import unicode_literals, print_function, absolute_import
 from tempfile import TemporaryFile
 from shutil import copyfileobj
 from io import BytesIO
-from six import PY2
 from six.moves.urllib.response import addinfourl
 from six.moves.http_client import BadStatusLine
+from .py2compat import parse_headers
 from .cache import Cache
 from .value import yield_values
 
@@ -12,63 +12,63 @@ from .value import yield_values
 DEFAULT_READ_SIZE = 2**16  # 64K
 MAX_IN_MEMORY_SIZE = 2**29      # 512M
 
-if PY2:
-
-    from httplib import HTTPMessage
-
-    def parse_headers(fp):
-        return HTTPMessage(fp, 0)
-
-else:
-
-    from http.client import parse_headers
 
 
 class Response(addinfourl):
-    """ Response class in the style of urllib2 with extra bits. """
+    """ A urllib2 style Response with some extras. 
 
-    def __init__(self, fp, headers, **kw):
-        wex_request_url = headers.get('x-wex-request-url', None)
-        wex_url = headers.get('x-wex-url', wex_request_url)
-        addinfourl.__init__(self, fp, headers,
-                            kw.pop('url', wex_url),
-                            kw.pop('code', None))
+        :param content: A file-like object containing the response content.
+        :param headers: An HTTPMessage containing the response headers.
+        :param url: The URL for which this is the response.
+        :param code: The status code recieved with this response.
+        :param protocol: The protocol received with this response.
+        :param version: The protocol version received with this response.
+        :param reason: The reason received with this response.
+        :param request_url: The URL requested that led to this response.
+    """
+
+    def __init__(self, content, headers, url, code=None, **kw):
+        addinfourl.__init__(self, content, headers, url, code)
+        self.request_url = kw.pop('request_url', None)
         self.protocol = kw.pop('protocol', None)
         self.version = kw.pop('version', None)
         self.reason = kw.pop('reason', None)
-        self.request_url = kw.pop('request_url', wex_request_url)
-        self.schedule = kw.pop('schedule', headers.get('x-wex-schedule', None))
         if kw:
             raise ValueError("unexpected keyword arguments %r" % kw.keys())
 
-    def seek(self, pos=0, mode=0):
-        self.fp.seek(pos, mode)
+    def seek(self, offset=0, whence=0):
+        """ Seek the content file position.
+
+            :param int offset: The offset from whence.
+            :param int whence: 0=from start,1=from current position,2=from end
+        """
+        self.fp.seek(offset, whence)
         return self.fp
 
     @classmethod
-    def values_from_readable(cls, extract, readable):
-        """ Yields values extracted from 'readable' using 'extract'. """
+    def values_from_readable(cls, extractor, readable):
         response = cls.from_readable(readable)
         with Cache():
-            for value in yield_values(extract, response):
+            for value in yield_values(extractor, response):
                 yield value
 
     @classmethod
-    def from_readable(cls, readable, **kw):
+    def from_readable(cls, readable):
         status_line = readable.readline()
         protocol, version, code, reason = cls.parse_status_line(status_line)
         headers = parse_headers(readable)
+        request_url = headers.get('X-wex-request-url')
+        url = headers.get('X-wex-url', request_url)
         content = cls.content_file(readable, headers)
-        return Response(content, headers, protocol=protocol.decode('UTF-8'),
-                                          version=version,
+        return Response(content, headers, url,
                                           code=code,
+                                          protocol=protocol.decode('UTF-8'),
+                                          version=version,
                                           reason=reason.decode('UTF-8'),
-                                          **kw)
+                                          request_url=request_url)
 
     @staticmethod
     def parse_status_line(status_line, field_defaults=['']*3):
-        """ Parses HTTP style status line. """
-
         fields = status_line.rstrip(b'\r\n').split(None, 2) + field_defaults
         protocol_version, code, reason = fields[:3]
 
@@ -89,7 +89,6 @@ class Response(addinfourl):
 
     @classmethod
     def content_file(cls, response_file, headers):
-
         try:
             content_length = int(headers.get('content-length', 0))
         except ValueError:

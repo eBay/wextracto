@@ -1,36 +1,51 @@
-""" Many Wextracto functions are designed for use in composed functions.
-
-Composed functions are functions built from other functions:
+"""
+Wextracto uses `Function composition <http://en.wikipedia.org/wiki/Function_composition_%28computer_science%29>`_
+as an easy way to build new functions from existing ones:
 
 .. code-block:: pycon
 
     >>> from wex.composed import compose
-    >>> f = compose(lambda x: x+1, lambda x: x*2)
+    >>> def add1(x):
+    ...     return x + 1
+    ...
+    >>> def mult2(x):
+    ...     return x * 2
+    ...
+    >>> f = compose(add1, mult2)
     >>> f(2)
     6
 
-Functions can be decorated to support composition using the ``|`` operator.
+Wextracto uses the pipe operator, ``|``, as a shorthand for function composition.
 
-.. code-block:: pycon
+This shorthand can be a powerful technique for reducing boilerplate code when
+used in combination with :class:`.Attributes`:
 
-    >>> from wex.composed import composable
-    >>> @composable
-    >>> def add1(x):
-    ...     return x+1
-    ...
-    >>> f = add1 | (lambda x: x*2)
-    >>> f(2)
-    >>> 6
+.. code-block:: python
+
+    from wex.etree import css, text
+    from wex.extractor import Attributes
+
+    attrs = Attributes(
+        title = css('h1') | text
+        description = css('#description') | text
+    )
 
 """
 
 from itertools import chain
 
 
-class Composable(object):
-    """ Composable objects create :class:`.ComposedFunction` objects.
+def compose(*functions):
+    """ Create a :class:`.ComposedCallable` from zero more functions. """
+    return ComposedCallable(*functions)
 
-    For example::
+
+def composable(func):
+    """ Decorates a callable to support function composition using ``|``.
+
+    For example:
+
+    .. code-block:: python
 
         @Composable.decorate
         def add1(x):
@@ -41,10 +56,13 @@ class Composable(object):
 
         composed = add1 | mult2
     """
+    return Composable.decorate(func)
+
+
+class Composable(object):
 
     @classmethod
     def decorate(cls, func, **kw):
-        """ Decorates a callable. """
         name = getattr(func, '__name__', str(func))
         clsdict = dict(
             __call__=staticmethod(func),
@@ -78,10 +96,10 @@ def flatten(functions):
     return tuple(chain.from_iterable(iterable))
 
 
-class ComposedFunction(Composable):
-    """ ComposedFunction creates a new function by combining functions.
+class ComposedCallable(Composable):
+    """ A callable, taking one argument, composed from other callables.
 
-    Here is a small example of building a ComposedFunction::
+    .. code-block:: python
 
         def mult2(x):
             return x * 2
@@ -89,27 +107,22 @@ class ComposedFunction(Composable):
         def add1(x):
             return x + 1
 
-        composed = Composed(add1, mult2)
+        composed = ComposedCallable(add1, mult2)
 
         for x in (1, 2, 3):
             assert composed(x) == mult2(add1(x))
 
-    ComposedFunction objects are :class:`.Composable`.
-
-    The ComposedFunction supports only unary (single argument) functions.
-    A ComposedFunction can be built from other ComposedFunction objects.
-
-    For more background information on function composition read this
-    `wikipedia article <http://en.wikipedia.org/wiki/Function_composition>`_.
+    ComposedCallable objects are :func:`composable <wex.composed.composable>`.
+    It can be composed of other ComposedCallable objects.  
     """
 
     def __init__(self, *functions):
         self.functions = flatten(functions)
 
-    def __call__(self, arg):
+    def __call__(self, arg, **kw):
         res = arg
         for func in self.functions:
-            res = func(res)
+            res = func(res, **kw)
         return res
 
     def __compose__(self):
@@ -121,11 +134,3 @@ class ComposedFunction(Composable):
                               self.functions)
 
 
-def composable(func):
-    """ Short-hand for :meth:`.Composable.decorate`. """
-    return Composable.decorate(func)
-
-
-def compose(*functions):
-    """ Create a :class:`.ComposedFunction` from zero more functions. """
-    return ComposedFunction(*functions)

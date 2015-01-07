@@ -36,12 +36,16 @@ class Open(object):
         return 'Open(%r)' % self.open
 
     def __getattr__(self, name):
-        if name not in ('readline', 'read', 'close'):
+        if name not in ('readline', 'read', 'close', 'name'):
             raise AttributeError
         fp = self.open()
+
         self.__dict__['read'] = fp.read
         self.__dict__['readline'] = fp.readline
         self.__dict__['close'] = fp.close
+        if hasattr(fp, 'name'):
+            self.__dict__['name'] = fp.name
+
         assert name in self.__dict__
         return self.__dict__[name]
 
@@ -68,7 +72,7 @@ def tarfile_tarinfo_open(path, tarinfo):
 
 
 
-def readables_from_paths(paths, save=False, responses_dir='responses'):
+def readables_from_paths(paths, save_dir=None):
     """ Yield readables from a sequence of paths """
 
     for path in paths:
@@ -80,8 +84,8 @@ def readables_from_paths(paths, save=False, responses_dir='responses'):
         elif URL(path).parsed.scheme:
             url = URL(path)
             readables = url.get()
-            if save:
-                readables = save_readables(url, responses_dir, readables)
+            if save_dir:
+                readables = save_readables(url, save_dir, readables)
             for readable in readables:
                 yield readable
         else:
@@ -89,8 +93,8 @@ def readables_from_paths(paths, save=False, responses_dir='responses'):
                 yield readable
 
 
-def save_readables(url, responses_dir, readables):
-    url_dir = url.mkdirs(responses_dir)
+def save_readables(url, save_dir, readables):
+    url_dir = url.mkdirs(save_dir)
     for i, readable in enumerate(readables):
         basename = '{}{}'.format(i, EXT_WEXIN)
         path = os.path.join(url_dir, basename)

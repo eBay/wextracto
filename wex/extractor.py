@@ -1,22 +1,52 @@
-""" Loading, combining and using extractor functions """
+""" An extractor is a callable that returns or yields data. For example:
+
+.. code-block:: python
+
+    def extract(response):
+        return "something"
+
+The ``response`` parameter here is an instance of 
+:class:`wex.response.Response`.
+
+Extractors can be combined in various ways.
+"""
 
 from __future__ import absolute_import, unicode_literals, print_function
-import logging
 from functools import wraps
-from six.moves.urllib_parse import urlparse
-from pkg_resources import iter_entry_points
 from .value import yield_values
 
 
 OMITTED = object()
 
 
-def chained(*extractors):
-    """ Creates an extractor Chains extractors functions to make a new one. """
-    return ChainedExtractors(extractors)
+class Chain(object):
+    """ A chain of extractors.
 
+    The output is the output from each extractor in sequence.
 
-class ChainedExtractors(object):
+    :param extractors: an iterable of extractor callables to chain
+
+    For example an extractor function ``extract`` defined as follows:
+
+    .. code-block:: python
+
+        def extract1(response):
+            yield "one"
+
+        def extract2(response):
+            yield "two"
+
+        extract = Chain(extract1, extract2)
+
+    Would produce the following extraction output:
+
+    .. code-block:: shell
+
+        $ wex http://example.net/
+        "one"
+        "two"
+
+    """
 
     @property
     def __name__(self):
@@ -25,8 +55,8 @@ class ChainedExtractors(object):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.extractors)
 
-    def __init__(self, extractors):
-        self.extractors = extractors
+    def __init__(self, *extractors):
+        self.extractors = list(extractors)
 
     def __call__(self, arg0, *args, **kw):
         seek = getattr(arg0, 'seek', None)
@@ -37,18 +67,62 @@ class ChainedExtractors(object):
             for value in values:
                 yield value
 
+    def append(self, extractor):
+        self.extractors.append(extractor)
+        return extractor
 
-def labelled(*literals_or_callables):
-    """ Wraps an extractor so that the extracted values are labelled. """
+    def insert(self, index, extractor=None):
+        def decorator(func):
+            self.insert(index, func)
+        if extractor is None:
+            return decorator
+        else:
+            return decorator(extractor)
+
+
+
+def label(*label_literals_or_callables):
+    """ Returns a decorator that will label the output an extractor.
+
+    :param literals_or_callables: An iterable of labels or callables.
+
+    Each item in ``literals_or_callables`` may be a literal or a callable.
+    Any callable will called with the same parameters as the extractor
+    and whatever is returned will by used as a label.
+
+    For example an extractor function ``extract`` defined as follows:
+
+    .. code-block:: python
+
+        def extract1(response):
+            yield "one"
+
+
+        def label2(response):
+            return "label2"
+
+
+        extract = label("label1", label2)(extract1)
+
+    Would produce the following extraction output:
+
+    .. code-block:: shell
+
+        $ wex http://example.net/
+        "label1"    "label2"    "one"
+
+    Note that if any of the labels are
+    `false <https://docs.python.org/2/library/stdtypes.html#truth-value-testing>`_ 
+    then no output will be generated from that extractor.
+    """
 
     def call(label, arg0):
         return (label(arg0) if hasattr(label, '__call__') else label)
 
-    def labelled_extractor_decorator(extractor):
+    def label_decorator(extractor):
         @wraps(extractor)
-        def labelled_extractor_wrapper(arg0, *args, **kw):
-
-            labels = [call(label, arg0) for label in literals_or_callables]
+        def labelled_extractor(arg0, *args, **kw):
+            labels = [call(l, arg0) for l in label_literals_or_callables]
             if not all(labels):
                 # one or more missing labels so don't yield
                 return
@@ -56,21 +130,47 @@ def labelled(*literals_or_callables):
             for value in yield_values(extractor, arg0, *args, **kw):
                 yield value.label(*labels)
 
-        return labelled_extractor_wrapper
+        return labelled_extractor
 
-    return labelled_extractor_decorator
+    return label_decorator
 
-
-def attributes(**kw):
-    """ Creates a composite extractor from labelled extractors. """
-    return Attributes(**kw)
 
 class Attributes(object):
+    """ A extractor that is a collection of labelled extractors.
+
+    Extractors can be added to the collection on construction
+    using keyword arguments for the labels.  For example, an 
+    extractor function ``extract`` defined as follows:
+
+    .. code-block:: python
+
+        extract = Attributes(
+            attr1 = (lambda response: "one"),
+            attr2 = (lambda response: "two"),
+        )
+
+    Would produce the extraction output something like this:
+
+    .. code-block:: shell
+
+        $ wex http://example.net/
+        "attr1"    "one"
+        "attr2"    "two"
+
+    The ordering of the attributes in the output is arbitrary.
+    """
 
     def __init__(self, **kw):
         self.extractors = {}
         for k, v in kw.items():
-            self.add(k, v)
+            self.add(v, k)
+
+    @property
+    def __name__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.extractors.keys())
 
     def __len__(self):
         return len(self.extractors)
@@ -80,58 +180,26 @@ class Attributes(object):
             for value in yield_values(extractor, *args, **kwargs):
                 yield value.label(name)
 
-    def add(self, extractor_or_name, extractor=OMITTED):
-        """ Add attribute function decorator/add method. """
-        if extractor is OMITTED:
-            name = extractor_or_name.__name__
-            extractor = extractor_or_name
-        else:
-            name = extractor_or_name
-        self.extractors[name] = extractor
+    def add(self, extractor, label=None):
+        """ Add an attribute extractor.
 
-    def extractor(self, extractor):
-        """ Add an extractor using decorator syntax. """
-        self.add(extractor)
+        :param callable extractor: The extractor to be added.
+        :param str label: The label for the extractor.
+                          This may be ``None`` in which case the
+                          extractors ``__name__`` attribute will be used.
+
+        This method returns the extractor added.  This means it can
+        also be used as a decorator. For example:
+
+        .. code-block:: python
+
+            attrs = Attributes()
+
+            @attrs.add
+            def attr1(response):
+                return "one"
+        """
+        if label is None:
+            label = extractor.__name__
+        self.extractors[label] = extractor
         return extractor
-
-
-
-
-class ExtractorFromEntryPoints(object):
-    """ An extractor that loads sub-extractors from entry points. 
-
-    Sub-extractors may be hostname specific.  This is indicated by
-    using a leading '.' in the entry point name.
-    """
-
-    def __init__(self, excluded=[]):
-        self.extractors = {}
-        self.excluded = excluded
-
-    def __call__(self, arg0, *args, **kw):
-        url = getattr(arg0, 'url', None)
-        hostname = urlparse(url).hostname if url else None
-        if hostname not in self.extractors:
-            self.extractors[hostname] = self.extractor_for_hostname(hostname)
-        extractor = self.extractors[hostname]
-        return extractor(arg0, *args, **kw)
-
-    def extractor_for_hostname(self, hostname):
-        extractors = []
-        entry_point_group = 'wex'
-        for entry_point in iter_entry_points(entry_point_group):
-            if entry_point.name in self.excluded:
-                continue
-            if hostname and entry_point.name.startswith('.'):
-                dotname = '.' + hostname
-                if not dotname.endswith(entry_point.name):
-                    continue
-            try:
-                extractor = entry_point.load()
-            except Exception:
-                logger = logging.getLogger(__name__)
-                logger.exception("Failed to load [%s] entry point '%s'",
-                                 entry_point_group, entry_point.name)
-                continue
-            extractors.append(extractor)
-        return chained(*extractors)

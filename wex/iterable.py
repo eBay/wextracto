@@ -1,22 +1,36 @@
 """ Helper functions for things that are iterable """
 
-from functools import partial, wraps
-from itertools import chain
-from six import next
-from six.moves import map as map_
+from types import GeneratorType
+from functools import partial
+from itertools import islice as islice_
+from six import next, string_types
+from six.moves import map
 from .composed import composable
 
 
+# We use this a lot, let's help pyflakes spot typos
+__iter__ = '__iter__'
+
+
 class ZeroValuesError(ValueError):
-    """ Zero values were found. """
+    """ Zero values were found when at least one was expected. """
 
 
 class MultipleValuesError(ValueError):
-    """ More than one value was found. """
+    """ More than one value was found when one or none were expected. """
 
 
 @composable
 def first(iterable):
+    """ Returns first item from an iterable.
+
+    :param iterable: The iterable.
+
+    If the iterable is empty then ``None`` is returned.
+    """
+    if not hasattr(iterable, __iter__):
+        # turns out it isn't iterable after all
+        return iterable
     i = iter(iterable)
     try:
         v0 = next(i)
@@ -27,6 +41,9 @@ def first(iterable):
 
 @composable
 def one(iterable):
+    if not hasattr(iterable, __iter__):
+        # turns out it isn't iterable after all
+        return iterable
     i = iter(iterable)
     v0 = first(i)
     try:
@@ -44,11 +61,43 @@ def one_or_none(iterable):
     except ZeroValuesError:
         return None
 
+@composable
+def gen(obj, yieldable=string_types):
+    """ Return a generator. """
+    if isinstance(obj, GeneratorType):
+        return obj
+    if hasattr(obj, __iter__) and not isinstance(obj, yieldable):
+        return (i for i in obj)
+    return (i for i in (obj,))
+
 
 @composable
-def flatten(iterable):
-    return chain.from_iterable(iterable)
+def flatten(obj, yieldable=string_types):
+    """ Yield sub-objects from obj. """
+    stack = [gen(obj)]
+    while stack:
+        try:
+            item = next(stack[-1])
+        except StopIteration:
+            stack.pop()
+        else:
+            if isinstance(item, yieldable) or not hasattr(item, __iter__):
+                yield item
+            else:
+                stack.append(iter(item))
 
 
-def map(func, *args, **kwargs):
-    return composable(partial(map_, func, *args, **kwargs))
+def flatmap(func, *args, **kwargs):
+    """ Return function that maps a function over a flattened iterable. """
+    partial_func = partial(func, *args, **kwargs)
+    @composable
+    def flatmap(iterable):
+        return map(partial_func, flatten(iterable))
+    return flatmap
+
+
+def islice(*islice_args):
+    @composable
+    def islice(iterable):
+        return islice_(iterable, *islice_args)
+    return islice

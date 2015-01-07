@@ -143,53 +143,50 @@ public_suffix_list = PublicSuffixList()
 
 
 @composable
-def parse_url(obj, **kw):
-    if hasattr(obj, 'url'):
-        url = obj.url
-    else:
-        url = obj
+def get_url(obj):
+    return getattr(obj, 'url', obj)
 
-    return urlparse(url)
-
-query = parse_url | attrgetter('query')
-path = parse_url | attrgetter('path')
-hostname = parse_url | attrgetter('hostname')
-params = query | parse_qs
-param_list = query | parse_qsl
+parse_url = get_url | urlparse
+url_query = parse_url | attrgetter('query')
+url_path = parse_url | attrgetter('path')
+url_hostname = parse_url | attrgetter('hostname')
+url_query_dict = url_query | parse_qs
+url_query_list = url_query | parse_qsl
 
 
-def param(name, default=[]):
-    return params | methodcaller('get', name, default)
+def url_query_param(name, default=[]):
+    return url_query_dict | methodcaller('get', name, default)
 
 
-def filter_params(*names, **kw):
+def filter_url_query(*names, **kw):
 
     names = set(names)
-    filter_func = kw.get('filter_func', filter)
+    exclude = kw.pop('exclude', False)
 
-    def pred(param):
-        return param[0] in names
+    def included(pair):
+        return pair[0] in names
+
+    def excluded(pair):
+        return pair[0] not in names
+
+    if exclude:
+        pred = excluded
+    else:
+        pred = included
 
     @composable
-    def filter_params(obj):
+    def url_query_filter(obj):
         parsed = parse_url(obj)
-        qsl = list(filter_func(pred, parse_qsl(parsed.query)))
-        return urlunparse(parsed._replace(query=urlencode(qsl)))
+        qsl = list(filter(pred, parse_qsl(parsed.query)))
+        filtered_query = urlencode(qsl)
+        return urlunparse(parsed._replace(query=filtered_query))
 
-    return filter_params
-
-
-def remove_params(*names):
-    return filter_params(*names, filter_func=filterfalse)
+    return url_query_filter
 
 
-def whitelist_params(*names):
-    return filter_params(*names)
-
-
-strip_params = filter_params()
+strip_url_query = filter_url_query()
 
 
 @composable
 def public_suffix(src, **kw):
-    return public_suffix_list.get_public_suffix(hostname(src) or src)
+    return public_suffix_list.get_public_suffix(url_hostname(src) or src)
