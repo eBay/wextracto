@@ -199,10 +199,10 @@ def itertext(src):
 
 
 #: A :class:`wex.composed.ComposedFunction` that returns the whitespace 
-#: normalized text from one element.
+#: normalized text from selected elements.
 text = itertext | normalize_space
 
-#: A :class:`wex.composed.ComposedCallable` that yields text.
+#: A :class:`wex.composed.ComposedCallable` that yields text nodes.
 text_nodes = itertext | flatten
 
 #: A :class:`wex.composed.ComposedFunction` that returns the whitespace 

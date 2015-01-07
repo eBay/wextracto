@@ -41,6 +41,13 @@ def first(iterable):
 
 @composable
 def one(iterable):
+    """ Returns an item from an iterable of exactly one element.
+
+    If the iterable comprises zero elements then :exc:`.ZeroValuesError` is
+    raised.
+    If the iterable has more than one element then :exc:`.MultipleValuesError` is
+    raised.
+    """
     if not hasattr(iterable, __iter__):
         # turns out it isn't iterable after all
         return iterable
@@ -56,39 +63,37 @@ def one(iterable):
 
 @composable
 def one_or_none(iterable):
+    """ Returns one item or ``None`` from an iterable of length one or zero.
+
+    If the iterable is empty then ``None`` is returned.
+
+    If the iterable has more than one element then :exc:`.MultipleValuesError` is
+    raised.
+    """
     try:
         return one(iterable)
     except ZeroValuesError:
         return None
 
-@composable
-def gen(obj, yieldable=string_types):
-    """ Return a generator. """
-    if isinstance(obj, GeneratorType):
-        return obj
-    if hasattr(obj, __iter__) and not isinstance(obj, yieldable):
-        return (i for i in obj)
-    return (i for i in (obj,))
-
 
 @composable
-def flatten(obj, yieldable=string_types):
-    """ Yield sub-objects from obj. """
-    stack = [gen(obj)]
+def flatten(obj, yield_types=string_types):
+    """ Yield items from all sub-iterables from obj. """
+    stack = [(o for o in [obj])]
     while stack:
         try:
             item = next(stack[-1])
         except StopIteration:
             stack.pop()
         else:
-            if isinstance(item, yieldable) or not hasattr(item, __iter__):
+            if not hasattr(item, '__iter__') or isinstance(item, yield_types):
                 yield item
             else:
                 stack.append(iter(item))
 
 
 def flatmap(func, *args, **kwargs):
-    """ Return function that maps a function over a flattened iterable. """
+    """ Returns a function that maps a function over a flattened iterable. """
     partial_func = partial(func, *args, **kwargs)
     @composable
     def flatmap(iterable):
@@ -97,6 +102,7 @@ def flatmap(func, *args, **kwargs):
 
 
 def islice(*islice_args):
+    """ Returns a function that will perform ``itertools.islice`` on its input. """
     @composable
     def islice(iterable):
         return islice_(iterable, *islice_args)

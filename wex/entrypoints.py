@@ -58,14 +58,12 @@ def get_wex_entry_points_from_cwd():
     return entry_points
 
 
-wex_entry_points_from_cwd = get_wex_entry_points_from_cwd()
-
-
 class ExtractorFromEntryPoints(object):
     """ An extractor combining extractors loaded from entry points. """
 
     def __init__(self):
         self.extractors = {}
+        self.wex_entry_points_from_cwd = get_wex_entry_points_from_cwd()
 
     def __call__(self, arg0, *args, **kw):
         hostname = urlparse(getattr(arg0, 'url', '') or '').hostname
@@ -76,27 +74,26 @@ class ExtractorFromEntryPoints(object):
 
     def load_extractor(self, hostname):
         extractors = []
-        for ep in iter_wex_entry_points():
+        for ep in self.iter_wex_entry_points():
             if ep.name.startswith('.') and not domain_suffix(ep, hostname):
                 continue
             append_if_load_succeeded(extractors, ep)
         return Chain(*extractors)
 
+    def iter_wex_entry_points(self):
+
+        for ep in iter_entry_points(GROUP):
+            # we don't want to load the same entry point twice
+            if str(ep) in self.wex_entry_points_from_cwd:
+                continue
+            yield ep
+
+        for ep in itervalues(self.wex_entry_points_from_cwd):
+            yield ep
+
 
 def extractor_from_entry_points():
     return ExtractorFromEntryPoints()
-
-
-def iter_wex_entry_points():
-
-    for ep in iter_entry_points(GROUP):
-        # we don't want to load the same entry point twice
-        if str(ep) in wex_entry_points_from_cwd:
-            continue
-        yield ep
-
-    for ep in itervalues(wex_entry_points_from_cwd):
-        yield ep
 
 
 def domain_suffix(entry_point, name):
