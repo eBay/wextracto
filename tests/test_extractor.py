@@ -1,5 +1,5 @@
 from pkg_resources import working_set, resource_stream, resource_filename
-from wex.extractor import labelled, chained, Attributes
+from wex.extractor import label, Chain, Attributes
 from wex.response import Response
 
 
@@ -47,53 +47,53 @@ def extract_with_error(arg0):
     raise error
 
 
-def test_chained_error():
-    extract = chained(extract_with_error)
+def test_chain_error():
+    extract = Chain(extract_with_error)
     items = list(extract('foo'))
     assert items == [(error,)]
 
 
-def test_chained_seek():
+def test_chain_seek():
     readable = resource_stream(__name__, 'fixtures/robots_txt')
     response = Response.from_readable(readable)
-    extract = chained(extract_first_line, extract_first_line)
+    extract = Chain(extract_first_line, extract_first_line)
     values = list(extract(response))
     assert values == [(b'# /robots.txt\n',), (b'# /robots.txt\n',)]
 
 
-def test_labelled():
+def test_label():
     labeller  = (lambda x: x)
-    extract = labelled(labeller)(extract_arg0)
+    extract = label(labeller)(extract_arg0)
     assert list(extract("foo")) == [("foo", "foo")]
 
 
-def test_labelled_missing_label():
+def test_label_missing_label():
     labeller = (lambda x: None)
-    @labelled(labeller)
+    @label(labeller)
     def extract(src):
         yield ("baz",)
     assert list(extract("foo")) == []
 
 
-def test_labelled_error():
+def test_label_error():
     labeller = (lambda x: "bar")
-    extract = labelled(labeller)(extract_with_error)
+    extract = label(labeller)(extract_with_error)
     values = list(extract('foo'))
     assert values == [('bar', error,)]
 
 
-def test_labelled_chain():
+def test_label_chain():
     # bug test
     labeller  = (lambda x: x)
-    extract = labelled(labeller)(chained(extract_arg0))
+    extract = label(labeller)(Chain(extract_arg0))
     assert list(extract("foo")) == [("foo", "foo")]
 
 
-def test_labelled_attributes():
+def test_label_attributes():
     # bug test
     labeller  = (lambda x: x)
     attr = Attributes(a1=(lambda x: 'bar'))
-    extract = labelled(labeller)(attr)
+    extract = label(labeller)(attr)
     assert list(extract("foo")) == [("foo", "a1", "bar")]
 
 

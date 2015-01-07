@@ -1,12 +1,12 @@
-from wex.extractor import attributes, labelled
+from wex.extractor import label, Attributes
 from wex.url import get_url
 from wex.etree import xpath, text
 
 
-attrs = attributes(
+attrs = Attributes(
     name = xpath('//h1') | text,
     country = xpath('//dd[@id="country"]') | text,
     region = xpath('//dd[@id="region"]') | text
 )
 
-extract = labelled(get_url)(attrs)
+extract = label(get_url)(attrs)

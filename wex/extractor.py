@@ -19,8 +19,10 @@ from .value import yield_values
 OMITTED = object()
 
 
-def chained(*extractors):
-    """ Returns an extractor that chains the output of other extractors.
+class Chain(object):
+    """ A chain of extractors.
+
+    The output is the output from each extractor in sequence.
 
     :param extractors: an iterable of extractor callables to chain
 
@@ -34,7 +36,7 @@ def chained(*extractors):
         def extract2(response):
             yield "two"
 
-        extract = chained(extract1, extract2)
+        extract = Chain(extract1, extract2)
 
     Would produce the following extraction output:
 
@@ -45,10 +47,6 @@ def chained(*extractors):
         "two"
 
     """
-    return ChainedExtractors(extractors)
-
-
-class ChainedExtractors(object):
 
     @property
     def __name__(self):
@@ -57,8 +55,8 @@ class ChainedExtractors(object):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.extractors)
 
-    def __init__(self, extractors):
-        self.extractors = extractors
+    def __init__(self, *extractors):
+        self.extractors = list(extractors)
 
     def __call__(self, arg0, *args, **kw):
         seek = getattr(arg0, 'seek', None)
@@ -69,8 +67,21 @@ class ChainedExtractors(object):
             for value in values:
                 yield value
 
+    def append(self, extractor):
+        self.extractors.append(extractor)
+        return extractor
 
-def labelled(*literals_or_callables):
+    def insert(self, index, extractor=None):
+        def decorator(func):
+            self.insert(index, func)
+        if extractor is None:
+            return decorator
+        else:
+            return decorator(extractor)
+
+
+
+def label(*label_literals_or_callables):
     """ Returns a decorator that will label the output an extractor.
 
     :param literals_or_callables: An iterable of labels or callables.
@@ -91,7 +102,7 @@ def labelled(*literals_or_callables):
             return "label2"
 
 
-        extract = labelled("label1", label2)(extract1)
+        extract = label("label1", label2)(extract1)
 
     Would produce the following extraction output:
 
@@ -108,10 +119,10 @@ def labelled(*literals_or_callables):
     def call(label, arg0):
         return (label(arg0) if hasattr(label, '__call__') else label)
 
-    def labelled_extractor_decorator(extractor):
+    def label_decorator(extractor):
         @wraps(extractor)
         def labelled_extractor(arg0, *args, **kw):
-            labels = [call(label, arg0) for label in literals_or_callables]
+            labels = [call(l, arg0) for l in label_literals_or_callables]
             if not all(labels):
                 # one or more missing labels so don't yield
                 return
@@ -121,7 +132,7 @@ def labelled(*literals_or_callables):
 
         return labelled_extractor
 
-    return labelled_extractor_decorator
+    return label_decorator
 
 
 class Attributes(object):

@@ -41,6 +41,11 @@ Iterables
 .. automodule:: wex.iterable
     :members:
 
+.. autofunction:: wex.iterable.one(iterable)
+.. autofunction:: wex.iterable.one_or_none(iterable)
+.. autofunction:: wex.iterable.first(iterable)
+.. autofunction:: wex.iterable.flatten(iterable, yield_types)
+
 URLs
 ~~~~
 

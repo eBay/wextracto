@@ -59,7 +59,7 @@ Now run ``wex`` with the following URL:
     $ wex http://gilessbrown.github.io/cheeses/cheddar.html
     "http://gilessbrown.github.io/cheeses/cheddar.html"
 
-Voila! We have written an extractor.
+Congratulations, you have just written an extractor!
 
 .. _xpath-expressions:
 
@@ -102,9 +102,11 @@ inside that element and any sub-elements.  Space-normalized means runs of
 whitespace are converted into a single space character and leading and 
 trailing whitespace is trimmed.
 
-Wextracto provides a function to do exactly that.  Here is what our extractor now looks like:
+Wextracto provides functions to do exactly that.  Here is what our extractor now looks like:
 
 .. literalinclude:: samples/tutorial/step3/tutorial.py
+
+The :func:`text <wex.etree.text>` function returns the normalized text from each selectedelement.  The :class:`one <wex.iterable.one>` function ensures there is exactly one selected element.
 
 Let's run ``wex`` with the usual URL again to check the result:
 
@@ -143,9 +145,9 @@ Now re-run ``wex``:
 .. code-block:: shell
 
     $ wex http://gilessbrown.github.io/cheeses/cheddar.html
-    "name"  "Cheddar"
-    "country"       "England"
-    "region"        "Somerset"
+    "name"	"Cheddar"
+    "country"	"England"
+    "region"	"Somerset"
 
 Wextracto uses the tab character to separate the label from the value.
 
@@ -167,7 +169,7 @@ Now re-run ``wex``:
 .. code-block:: shell
 
     $ wex http://gilessbrown.github.io/cheeses/cheddar.html
-    "name"  "Cheddar"
+    "name"	"Cheddar"
     #ZeroDivisionError('integer division or modulo by zero',)!
 
 The ``#`` and ``!`` at the start and end of that final line is Wextracto's 
@@ -213,10 +215,10 @@ Let's try running our extractor now and see what we get:
 .. code-block:: shell
 
     $ wex http://gilessbrown.github.io/cheeses/cheddar.html
-    "country"       "England"
-    "whoops"        #ZeroDivisionError('integer division or modulo by zero',)!
-    "region"        "Somerset"
-    "name"  "Cheddar"
+    "country"	"England"
+    "whoops"	#ZeroDivisionError('integer division or modulo by zero',)!
+    "region"	"Somerset"
+    "name"	"Cheddar"
 
 Now we've got something for all of the attributes we wanted and it tells
 which attribute extractor isn't working.
@@ -271,16 +273,16 @@ happens:
 .. code-block:: shell
 
     $ wex http://gilessbrown.github.io/cheeses/cheddar.html http://gilessbrown.github.io/cheeses/brie.html
-    "country"       "England"
-    "region"        "Somerset"
-    "name"  "Cheddar"
-    "country"       "France"
-    "region"        "Seine-et-Marne"
-    "name"  "Brie"
+    "country"	"tEngland"
+    "region"	"Somerset"
+    "name"	"Cheddar"
+    "country"	"France"
+    "region"	"Seine-et-Marne"
+    "name"	"Brie"
 
 Oh dear.  It isn't very clear which value came from which web page.
 
-We can fix this by using the :func:`wex.extractor.labelled` function:
+We can fix this by using the :func:`wex.extractor.label` function:
 
 .. literalinclude:: samples/tutorial/step8/tutorial.py
 
@@ -289,13 +291,15 @@ response.
 
 Let's try it:
 
+.. code-block:: shell
+
     $ wex http://gilessbrown.github.io/cheeses/cheddar.html http://gilessbrown.github.io/cheeses/brie.html
-    "http://gilessbrown.github.io/cheeses/cheddar.html"     "country"       "England"
-    "http://gilessbrown.github.io/cheeses/cheddar.html"     "region"        "Somerset"
-    "http://gilessbrown.github.io/cheeses/cheddar.html"     "name"  "Cheddar"
-    "http://gilessbrown.github.io/cheeses/brie.html"        "country"       "France"
-    "http://gilessbrown.github.io/cheeses/brie.html"        "region"        "Seine-et-Marne"
-    "http://gilessbrown.github.io/cheeses/brie.html"        "name"  "Brie"
+    "http://gilessbrown.github.io/cheeses/cheddar.html"	"country"	"England"
+    "http://gilessbrown.github.io/cheeses/cheddar.html"	"region"	"Somerset"
+    "http://gilessbrown.github.io/cheeses/cheddar.html"	"name"	"Cheddar"
+    "http://gilessbrown.github.io/cheeses/brie.html"	"country"	"France"
+    "http://gilessbrown.github.io/cheeses/brie.html"	"region"	"Seine-et-Marne"
+    "http://gilessbrown.github.io/cheeses/brie.html"	"name"	"Brie"
 
 As before, the labels are tab delimited.
 
@@ -333,12 +337,12 @@ And then we run ``wex``:
 .. code-block:: shell
 
     $ wex http://gilessbrown.github.io/cheeses/gloucester.html
-    "SNGGLCD7DDFD41"        "country"       "England"
-    "SNGGLCD7DDFD41"        "region"        "Gloucestershire"
-    "SNGGLCD7DDFD41"        "name"  "Single Gloucester"
-    "DBLGLCCECAA22C"        "country"       "England"
-    "DBLGLCCECAA22C"        "region"        "Gloucestershire"
-    "DBLGLCCECAA22C"        "name"  "Double Gloucester"
+    "SNGGLCD7DDFD41"	"country"	"England"
+    "SNGGLCD7DDFD41"	"region"	"Gloucestershire"
+    "SNGGLCD7DDFD41"	"name"	"Single Gloucester"
+    "DBLGLCCECAA22C"	"country"	"England"
+    "DBLGLCCECAA22C"	"region"	"Gloucestershire"
+    "DBLGLCCECAA22C"	"name"	"Double Gloucester"
 
 What Next?
 ~~~~~~~~~~

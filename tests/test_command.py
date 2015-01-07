@@ -98,3 +98,22 @@ def test_main_no_such_file(monkeypatch):
         command.main()
     assert isinstance(excinfo.value.args[0], IOError)
     assert excinfo.value.args[0].errno == errno.ENOENT
+
+
+def test_main_output_return_list(monkeypatch, tmpdir):
+    empty = resource_filename(__name__, 'fixtures/empty.wexin_')
+    args = [empty]
+    monkeypatch.chdir(tmpdir)
+    with tmpdir.join('entry_points.txt').open('w') as fp:
+        fp.write("[wex]\nreturn_list = testme:return_list")
+    assert run_main(monkeypatch, args) == '[1,2]\n'
+
+
+def test_main_output_return_tuple(monkeypatch, tmpdir):
+    empty = resource_filename(__name__, 'fixtures/empty.wexin_')
+    args = [empty]
+    monkeypatch.chdir(tmpdir)
+    with tmpdir.join('entry_points.txt').open('w') as fp:
+        fp.write("[wex]\nreturn_tuple = testme:return_tuple")
+    # The tuple is encoded as a JSON array
+    assert run_main(monkeypatch, args) == '[1,2]\n'
