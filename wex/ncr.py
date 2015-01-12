@@ -39,6 +39,13 @@ ncr_replacements = {
     0x9F: 0x0178,
 }
 
+LT = b'<'
+GT = b'>'
+AMP = b'&'
+SLASH = b'/'
+HASH = b'#'
+
+cdata_tags = (b'script', b'style')
 
 class InvalidNumCharRefReplacer(object):
     """ Replaces invalid numeric character references in HTML.
@@ -76,72 +83,69 @@ class InvalidNumCharRefReplacer(object):
                 self.clean = self.clean[size:]
                 return data
 
+
 def clean_ncr(dirty, eof, cdata_tag=None):
+    parts = []
     # tokenize 'dirty' looking for start tags and numeric character references
     pos = 0
     # position of start of next part
     part_pos = 0
-    # position up to which things are clean
-    clean_pos = 0
-    parts = []
 
     assert not cdata_tag or cdata_tag == cdata_tag.lower().strip()
 
-    if cdata_tag:
-        search_for_begin = search_for_begin_tag
-    else:
-        search_for_begin = search_for_begin_tag_or_ncr
-
-    search_for_end = {
-        b'&#': search_for_end_ncr,
-        b'<': search_for_end_open_tag,
-        b'</': search_for_end_close_tag,
+    end_token = {
+        AMP: end_char_ref,
+        LT: end_tag,
     }
 
     while True:
 
         if cdata_tag:
-            search_for_begin = search_for_begin_tag
+            # ignore char refs inside <script> or <style> tags.
+            # just looking for </script> or </style>
+            begin_token = begin_tag
         else:
-            search_for_begin = search_for_begin_tag_or_ncr
+            begin_token = begin_tag_or_char_ref
 
-        begin = search_for_begin(dirty, pos)
+        begin = begin_token.search(dirty, pos)
         if not begin:
-            # the remainder is clean
+            # now we know there are not more tokens in this chunk
             pos = len(dirty)
             break
 
-        pos = begin.start()
-
-        end = search_for_end[begin.group()](dirty, begin.end())
-        if not end:
+        token = end_token[begin.group()].search(dirty, begin.end())
+        if not token:
+            # We haven't seen the end of this token yet,
+            # we may be called again, but with more data (if !eof).
             break
 
-        token = dirty[begin.start():end.start()]
-        if token.startswith(b'</') and cdata_tag:
-            tag = token[2:].strip().lower()
-            if tag == cdata_tag:
-                cdata_tag = None
-        elif token.startswith(b'<'):
-            tag = token[1:].strip().lower()
-            if tag in (b'script', b'style'):
-                cdata_tag = tag
-        else:
-            assert token.startswith(b'&#')
-            if token[2:3].lower() == b'x':
-                code_point = int(token[3:], 16)
+        if begin.group() == LT:
+            if token.group(1) == SLASH and cdata_tag:
+                tag = token.group(2).lower()
+                if tag == cdata_tag:
+                    cdata_tag = None
             else:
-                code_point = int(token[2:], 10)
+                tag = token.group(2).lower()
+                if not cdata_tag and tag in cdata_tags:
+                    cdata_tag = tag
+        else:
+            assert begin.group() == AMP
+            assert not cdata_tag
 
-            if code_point in ncr_replacements:
-                parts.append(dirty[part_pos:begin.start()])
-                ncr = u'&#x%0X' % ncr_replacements[code_point]
-                parts.append(ncr.encode('ascii'))
-                part_pos = end.start()
+            ncr = token.group(1)
+            if ncr:
+                if ncr.lower().startswith(b'x'):
+                    code_point = int(ncr[1:], 16)
+                else:
+                    code_point = int(ncr, 10)
 
-        # because end of previous token can be start of next
-        # we move to .start() not .end()
-        pos = end.start()
+                if code_point in ncr_replacements:
+                    parts.append(dirty[part_pos:begin.start()])
+                    ncr = u'&#x%0X' % ncr_replacements[code_point]
+                    parts.append(ncr.encode('ascii'))
+                    part_pos = token.end()
+
+        pos = token.end()
 
     if eof:
         parts.append(dirty[part_pos:])
@@ -151,13 +155,13 @@ def clean_ncr(dirty, eof, cdata_tag=None):
 
     return b''.join(parts), dirty[pos:], cdata_tag
 
-
-# tokens here are HTML tags or numeric character references
-search_for_begin_tag_or_ncr = re.compile(b'(<(?=.)|&#)').search
-search_for_begin_tag = re.compile(b'<(?=.)').search
-search_for_end_ncr = re.compile(b'(\s|;|<|>|&)').search
-search_for_end_open_tag = re.compile(b'( |>)').search
-search_for_end_close_tag = re.compile(b'>').search
+#
+# When scanning for the begining of tokens we look just one character
+# at a time so that we don't have to worry about partial buffering.
+begin_tag = re.compile(LT)
+begin_tag_or_char_ref = re.compile(b'[<&]', re.I)
+end_tag = re.compile(b'(/?)\s*([a-z]+)(?=[^a-z])', re.I)
+end_char_ref = re.compile(b'[^#]|#(x[0-9A-F]+|[0-9]+)', re.I)
 
 
 def replace_invalid_ncr(fp):
