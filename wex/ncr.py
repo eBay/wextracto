@@ -45,7 +45,7 @@ AMP = b'&'
 SLASH = b'/'
 HASH = b'#'
 
-cdata_tags = ('script', 'style')
+cdata_tags = (b'script', b'style')
 
 class InvalidNumCharRefReplacer(object):
     """ Replaces invalid numeric character references in HTML.
@@ -134,7 +134,7 @@ def clean_ncr(dirty, eof, cdata_tag=None):
 
             ncr = token.group(1)
             if ncr:
-                if ncr.startswith('x'):
+                if ncr.lower().startswith(b'x'):
                     code_point = int(ncr[1:], 16)
                 else:
                     code_point = int(ncr, 10)
