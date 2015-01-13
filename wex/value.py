@@ -79,6 +79,7 @@ class Value(tuple):
         """ Adds zero or more labels to this value. """
         return self.__class__(tuple(map(text_type, labels)) + self)
 
+yield_types = (dict, list, tuple) + string_types
 
 def yield_values(extract, *args, **kw):
     """ Yields ``Value`` objects extracted using ``extract``. """
@@ -86,7 +87,7 @@ def yield_values(extract, *args, **kw):
 
     try:
         res = extract(*args, **kw)
-        for val in flatten(res, (list, tuple) + string_types):
+        for val in flatten(res, yield_types):
             yield Value(val)
     except Exception as exc:
         exc_info = sys.exc_info()

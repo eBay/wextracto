@@ -117,3 +117,13 @@ def test_main_output_return_tuple(monkeypatch, tmpdir):
         fp.write("[wex]\nreturn_tuple = testme:return_tuple")
     # The tuple is encoded as a JSON array
     assert run_main(monkeypatch, args) == '[1,2]\n'
+
+
+def test_main_output_return_dict(monkeypatch, tmpdir):
+    empty = resource_filename(__name__, 'fixtures/empty.wexin_')
+    args = [empty]
+    monkeypatch.chdir(tmpdir)
+    with tmpdir.join('entry_points.txt').open('w') as fp:
+        fp.write("[wex]\nreturn_dict = testme:return_dict")
+    # The tuple is encoded as a JSON array
+    assert run_main(monkeypatch, args) == '{"a":1}\n'
