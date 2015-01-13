@@ -75,49 +75,47 @@ url1_parsed = ('http', 'www.foo.com', '/g', '', 'this=1&that=2', '')
 # For each test we use a composed function because that checks
 # that we've got the composable decorator on the function.
 
-identity = lambda x: x
-
-parse_url = u.parse_url | identity
-public_suffix = u.public_suffix | identity
-param = u.url_query_param('this') | identity
-param_with_default = u.url_query_param('other', ['2']) | identity
-include_query_params = u.filter_url_query('that') | identity
-exclude_query_params = u.filter_url_query('this', exclude=True) | identity
-strip_url_query = u.strip_url_query | identity
+parse_url = u.parse_url | list
+public_suffix = u.public_suffix | list
+param = u.url_query_param('this') | list
+param_with_default = u.url_query_param('other', ['2']) | list
+include_query_params = u.filter_url_query('that') | list
+exclude_query_params = u.filter_url_query('this', exclude=True) | list
+strip_url_query = u.strip_url_query | list
 
 
 def test_parse_url():
-    assert parse_url(url1) == url1_parsed
+    assert parse_url(url1) == [url1_parsed]
 
 
 def test_parse_obj():
     class Response(object):
         url = url1
-    assert parse_url(Response()) == url1_parsed
+    assert parse_url(Response()) == [url1_parsed]
 
 
 def test_param():
-    assert param(url1) == ['1']
+    assert param(url1) == [['1']]
 
 
 def test_param_with_default():
-    assert param_with_default(url1) == ['2']
+    assert param_with_default(url1) == [['2']]
 
 
 def test_include_query_params():
-    assert include_query_params(url1) == 'http://www.foo.com/g?that=2'
+    assert include_query_params(url1) == ['http://www.foo.com/g?that=2']
 
 
 def test_exclude_query_params():
-    assert exclude_query_params(url1) == 'http://www.foo.com/g?that=2'
+    assert exclude_query_params(url1) == ['http://www.foo.com/g?that=2']
 
 
 def test_strip_url_query():
-    assert strip_url_query(url1) == 'http://www.foo.com/g'
+    assert strip_url_query(url1) == ['http://www.foo.com/g']
 
 
 def test_public_suffix():
-    assert public_suffix(url1) == 'foo.com'
+    assert public_suffix(url1) == ['foo.com']
 
 
 def test_eexist_ok():

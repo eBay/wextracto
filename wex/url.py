@@ -5,7 +5,7 @@ from operator import attrgetter, methodcaller
 from hashlib import md5
 from contextlib import contextmanager
 from six import text_type, string_types, next
-from six.moves import filter, filterfalse
+from six.moves import filter
 from six.moves.urllib_parse import (urlparse,
                                     urlunparse,
                                     parse_qs,
@@ -17,6 +17,7 @@ from pkg_resources import iter_entry_points
 from publicsuffix import PublicSuffixList
 
 from .composed import composable
+from .iterable import flatmap
 from .value import json_encode
 
 
@@ -143,22 +144,37 @@ public_suffix_list = PublicSuffixList()
 
 
 @composable
-def get_url(obj):
+def url_attr_1(obj):
     return getattr(obj, 'url', obj)
 
-parse_url = get_url | urlparse
-url_query = parse_url | attrgetter('query')
-url_path = parse_url | attrgetter('path')
-url_hostname = parse_url | attrgetter('hostname')
-url_query_dict = url_query | parse_qs
-url_query_list = url_query | parse_qsl
+parse_url_1 = url_attr_1 | urlparse
+parse_url = flatmap(parse_url_1)
+
+url_query_1 = parse_url_1 | attrgetter('query')
+url_query = flatmap(url_query_1)
+
+url_path_1 = parse_url_1 | attrgetter('path')
+url_path = flatmap(url_path_1)
+
+url_hostname_1 = parse_url_1 | attrgetter('hostname')
+url_hostname = flatmap(url_hostname_1)
+
+url_query_dict_1 = url_query_1 | parse_qs
+url_query_dict = flatmap(url_query_dict_1)
+
+url_query_list_1 = url_query_1 | parse_qsl
+url_query_list = flatmap(url_query_list_1)
+
+
+def url_query_param_1(name, default=[]):
+    return url_query_dict_1 | methodcaller('get', name, default)
 
 
 def url_query_param(name, default=[]):
-    return url_query_dict | methodcaller('get', name, default)
+    return flatmap(url_query_param_1(name, default))
 
 
-def filter_url_query(*names, **kw):
+def filter_url_query_1(*names, **kw):
 
     names = set(names)
     exclude = kw.pop('exclude', False)
@@ -176,17 +192,23 @@ def filter_url_query(*names, **kw):
 
     @composable
     def url_query_filter(obj):
-        parsed = parse_url(obj)
+        parsed = parse_url_1(obj)
         qsl = list(filter(pred, parse_qsl(parsed.query)))
         filtered_query = urlencode(qsl)
         return urlunparse(parsed._replace(query=filtered_query))
 
     return url_query_filter
 
+def filter_url_query(*names, **kw):
+    return flatmap(filter_url_query_1(*names, **kw))
 
-strip_url_query = filter_url_query()
+
+strip_url_query_1 = filter_url_query_1()
+strip_url_query = flatmap(strip_url_query_1)
 
 
 @composable
-def public_suffix(src, **kw):
-    return public_suffix_list.get_public_suffix(url_hostname(src) or src)
+def public_suffix_1(src):
+    return public_suffix_list.get_public_suffix(url_hostname_1(src) or src)
+
+public_suffix = flatmap(public_suffix_1)
