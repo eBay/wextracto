@@ -1,15 +1,11 @@
 """ Helper functions for things that are iterable """
 
-from types import GeneratorType
-from functools import partial
+import wex.py2compat ; assert wex.py2compat
+from functools import partial, singledispatch
 from itertools import islice as islice_
-from six import next, string_types
+from six import next
 from six.moves import map
 from .composed import composable
-
-
-# We use this a lot, let's help pyflakes spot typos
-__iter__ = '__iter__'
 
 
 class ZeroValuesError(ValueError):
@@ -20,6 +16,32 @@ class MultipleValuesError(ValueError):
     """ More than one value was found when one or none were expected. """
 
 
+
+@singledispatch
+def iterate(obj):
+    return True
+
+
+@iterate.register(str)
+def iterate_str(obj):
+    return False
+
+
+@iterate.register(dict)
+def iterate_dict(obj):
+    return False
+
+
+def maybe_map(func):
+    @composable
+    #@wraps(func)
+    def wrapper(arg0):
+        if hasattr(arg0, '__iter__') and iterate(arg0):
+            return map(func, arg0)
+        return func(arg0)
+    return wrapper
+
+
 @composable
 def first(iterable):
     """ Returns first item from an iterable.
@@ -28,7 +50,7 @@ def first(iterable):
 
     If the iterable is empty then ``None`` is returned.
     """
-    if not hasattr(iterable, __iter__):
+    if not hasattr(iterable, '__iter__'):
         # turns out it isn't iterable after all
         return iterable
     i = iter(iterable)
@@ -48,7 +70,7 @@ def one(iterable):
     If the iterable has more than one element then :exc:`.MultipleValuesError` is
     raised.
     """
-    if not hasattr(iterable, __iter__):
+    if not hasattr(iterable, '__iter__'):
         # turns out it isn't iterable after all
         return iterable
     i = iter(iterable)
@@ -77,19 +99,19 @@ def one_or_none(iterable):
 
 
 @composable
-def flatten(obj, yield_types=string_types):
+def flatten(obj, iterate=iterate):
     """ Yield items from all sub-iterables from obj. """
-    stack = [(o for o in [obj])]
+    stack = [iter([obj])]
     while stack:
         try:
             item = next(stack[-1])
         except StopIteration:
             stack.pop()
         else:
-            if not hasattr(item, '__iter__') or isinstance(item, yield_types):
-                yield item
-            else:
+            if hasattr(item, '__iter__') and iterate(item):
                 stack.append(iter(item))
+            else:
+                yield item
 
 
 def flatmap(func, *args, **kwargs):

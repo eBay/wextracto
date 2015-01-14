@@ -100,7 +100,7 @@ def test_attrib_default():
 
 def test_attrib_missing_default():
     f = e.css('#div1 a') | e.attrib('nosuch') | list
-    assert f(response(example)) == []
+    assert f(response(example)) == [None, None]
 
 
 def test_href():

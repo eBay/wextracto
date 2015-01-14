@@ -28,7 +28,7 @@ from operator import itemgetter
 from six import PY2, text_type, reraise, string_types
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
-from .iterable import flatten
+from .iterable import flatten, iterate
 
 
 TAB = '\t'
@@ -79,7 +79,10 @@ class Value(tuple):
         """ Adds zero or more labels to this value. """
         return self.__class__(tuple(map(text_type, labels)) + self)
 
-yield_types = (dict, list, tuple) + string_types
+def iterate_values(obj):
+    if isinstance(obj, (list, tuple)):
+        return False
+    return iterate(obj)
 
 def yield_values(extract, *args, **kw):
     """ Yields ``Value`` objects extracted using ``extract``. """
@@ -87,7 +90,7 @@ def yield_values(extract, *args, **kw):
 
     try:
         res = extract(*args, **kw)
-        for val in flatten(res, yield_types):
+        for val in flatten(res, iterate_values):
             yield Value(val)
     except Exception as exc:
         exc_info = sys.exc_info()

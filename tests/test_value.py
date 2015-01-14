@@ -2,6 +2,8 @@ from wex.value import Value, yield_values
 
 whoops = ValueError("whoops")
 
+
+
 def test_yield_values():
     def ex():
         yield 1

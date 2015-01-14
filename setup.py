@@ -27,6 +27,7 @@ setup(
         'lxml>=3',
         'cssselect',
         'publicsuffix',
+        'singledispatch',
     ],
     classifiers=(
         'Development Status :: 4 - Beta',

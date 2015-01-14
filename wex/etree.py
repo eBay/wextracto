@@ -14,17 +14,18 @@ import codecs
 
 from six.moves import reduce
 
-from lxml.etree import XPath, _ElementTree, Element
+from lxml.etree import XPath, _ElementTree, _Element, Element
 from lxml.cssselect import CSSSelector
 from lxml.html import XHTML_NAMESPACE, HTMLParser
 
 from .composed import composable
 from .cache import cached
-from .iterable import flatten
+from .iterable import flatten, maybe_map, iterate
 from .ncr import replace_invalid_ncr
 
 SKIP = object()
 skip = partial(is_, SKIP)
+
 
 UNPARSEABLE = Element('unparseable')
 
@@ -35,6 +36,10 @@ space_join = composable(' '.join)
 
 
 default_namespaces = {'re': 'http://exslt.org/regular-expressions'}
+
+@iterate.register(_Element)
+def iterable__Element(obj):
+    return False
 
 
 class WrapsShim(object):
@@ -59,12 +64,14 @@ def parse(src):
 
     if not hasattr(src, 'read'):
         return src
+
     charset = src.headers.get_content_charset()
     try:
         if charset and codecs.lookup(charset).name == 'iso8859-1':
             charset = 'windows-1252'
     except LookupError:
         pass
+
     etree = _ElementTree()
     # if charset is not specified in the Content-Type, this will be
     # None ; encoding=None produces default (ISO 8859-1) behavior.
@@ -81,17 +88,21 @@ def parse(src):
     except IOError as exc:
         logger = logging.getLogger(__name__)
         logger.warning("IOError parsing %s (%s)", src.url, exc)
+
     root = etree.getroot()
     if root is None:
         etree._setroot(UNPARSEABLE)
+
     return etree
 
 
 @cached
-def base_url(root):
-    unquoted_base_url = (unquote(root.base_url) if root.base_url
-                                                else root.base_url)
-    return reduce(urljoin, base_href(root)[:1], unquoted_base_url)
+def get_base_url(root):
+    if root.base_url:
+        base_url = unquote(root.base_url)
+    else:
+        base_url = root.base_url
+    return reduce(urljoin, base_href(root)[:1], base_url)
 
 
 def css(expression):
@@ -105,7 +116,7 @@ def css(expression):
         The callable returned accepts a :class:`wex.response.Response`, a
         list of elements or an individual element as an argument.
     """
-    return parse | CSSSelector(expression)
+    return parse | maybe_map(CSSSelector(expression))
 
 
 def xpath(expression, namespaces=default_namespaces):
@@ -128,38 +139,30 @@ def xpath(expression, namespaces=default_namespaces):
             >>> selector = xpath('//h1')
 
     """
-    return parse | XPath(expression, namespaces=namespaces)
+    return parse | maybe_map(XPath(expression, namespaces=namespaces))
 
 
-def maybe_list(f):
-    #@wraps(WrapsShim(f))
-    def wrapper(src, *args, **kwargs):
-        cache = {}
-        if isinstance(src, list):
-            return [ret for ret in (f(i) for i in src) if not skip(ret)]
-        return f(src, __maybe_list_cache__=cache)
-    return wrapper
+def attrib(name, default=None):
+    return maybe_map(methodcaller('get', name, default))
 
 
-def attrib(name, default=SKIP):
-    return maybe_list(methodcaller('get', name, default))
-
-
-def base_url_join(f):
-    #@wraps(WrapsShim(f))
-    def wrapper(src, *args, **kwargs):
-        roottree = src.getroottree() if hasattr(src, 'getroottree') else src
-        root = roottree.getroot()
-        url = f(src)
+def base_url_join(urlgetter):
+    def base_url_join(elem_or_tree, *args, **kwargs):
+        if hasattr(elem_or_tree, 'getroottree'):
+            tree = elem_or_tree.getroottree()
+        else:
+            tree = elem_or_tree
+        base_url = get_base_url(tree.getroot())
+        url = urlgetter(elem_or_tree)
         # urljoin requires 'find' so give up if we don't find it (e.g. None)
         if hasattr(url, 'find'):
-            return urljoin(base_url(root), url)
+            return urljoin(base_url, url)
         return url
-    return wrapper
+    return maybe_map(base_url_join)
 
 
-href = maybe_list(base_url_join(methodcaller('get', 'href', SKIP)))
-src = maybe_list(base_url_join(methodcaller('get', 'src', SKIP)))
+href = base_url_join(methodcaller('get', 'href', SKIP))
+src = base_url_join(methodcaller('get', 'src', SKIP))
 
 
 @composable
