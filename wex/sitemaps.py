@@ -34,7 +34,7 @@ def urls_from_robots_txt(response):
         # we shouldn't need to urljoin but we do just in case
         joined = URL(urljoin(response.url, value.strip()))
         # set sitemap=True in fragment to help downstream processing
-        yield "url", joined.update_fragment(sitemap=True)
+        yield "url", joined.update_fragment_dict(sitemap=True)
 
 
 def urls_from_urlset_or_sitemapindex(response):
@@ -66,7 +66,7 @@ def urls_from_urlset_or_sitemapindex(response):
                 if elem.getparent().tag.endswith('}sitemap'):
                     # add a sitemap=True to fragment so that
                     # in case we need to read an Atom, RSS or text file.
-                    url = url.update_fragment(sitemap=True)
+                    url = url.update_fragment_dict(sitemap=True)
                 yield "url", url
 
         if elem.getparent() is root:

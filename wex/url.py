@@ -73,8 +73,8 @@ class URL(text_type):
 
 
     @property
-    def fragment(self):
-        """ Client side data represented as JSON in the fragment. """
+    def fragment_dict(self):
+        """ Client side data dict represented as JSON in the fragment. """
         if not self.parsed.fragment:
             return {}
 
@@ -84,15 +84,18 @@ class URL(text_type):
             fragment = self.parsed.fragment
 
         try:
-            return json.loads(fragment)
+            data = json.loads(fragment)
+            if not isinstance(data, dict):
+                data = {}
         except ValueError:
-            pass
-        return {}
+            data = {}
 
-    def update_fragment(self, **kw):
-        fragment = dict(self.fragment)
-        fragment.update(kw)
-        fragment = json_encode(fragment)
+        return data
+
+    def update_fragment_dict(self, **kw):
+        fragment_dict = dict(self.fragment_dict)
+        fragment_dict.update(kw)
+        fragment = json_encode(fragment_dict)
         return self.__class__(urlunparse(self.parsed._replace(fragment=fragment)))
 
     @property
@@ -101,7 +104,7 @@ class URL(text_type):
         if not self.parsed.scheme:
             raise ValueError("URL has no scheme")
 
-        method = self.fragment.get('method', DEFAULT_METHOD)
+        method = self.fragment_dict.get('method', DEFAULT_METHOD)
 
         if isinstance(method, string_types):
             return Method(self.parsed.scheme, method, {})
