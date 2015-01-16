@@ -1,5 +1,5 @@
 from wex.extractor import label, Attributes
-from wex.url import get_url
+from wex.response import Response
 from wex.etree import xpath, text
 
 
@@ -9,4 +9,4 @@ attrs = Attributes(
     region = xpath('//dd[@id="region"]') | text
 )
 
-extract = label(get_url)(attrs)
+extract = label(Response.geturl)(attrs)
