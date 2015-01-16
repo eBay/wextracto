@@ -25,10 +25,10 @@ import sys
 from json import JSONEncoder
 from functools import partial
 from operator import itemgetter
-from six import PY2, text_type, reraise, string_types
+from six import PY2, text_type, reraise
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
-from .iterable import flatten, iterate
+from .iterable import flatten, should_iterate
 
 
 TAB = '\t'
@@ -80,9 +80,9 @@ class Value(tuple):
         return self.__class__(tuple(map(text_type, labels)) + self)
 
 
-def iterate_values(obj):
+def should_iterate_unless_list_or_tuple(obj):
     # when yielding values we *dont* want to iterate lists and tuples
-    return not isinstance(obj, (list, tuple)) and iterate(obj)
+    return not isinstance(obj, (list, tuple)) and should_iterate(obj)
 
 
 def yield_values(extract, *args, **kw):
@@ -91,7 +91,7 @@ def yield_values(extract, *args, **kw):
 
     try:
         res = extract(*args, **kw)
-        for val in flatten(res, iterate_values):
+        for val in flatten(res, should_iterate_unless_list_or_tuple):
             yield Value(val)
     except Exception as exc:
         exc_info = sys.exc_info()

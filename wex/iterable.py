@@ -18,21 +18,22 @@ class MultipleValuesError(ValueError):
 
 
 @singledispatch
-def iterate(obj):
+def should_iterate(obj):
     return True
 
 
-@iterate.register(str)
-def iterate_str(obj):
+@should_iterate.register(str)
+def should_iterate_str(obj):
     return False
 
 
-@iterate.register(dict)
-def iterate_dict(obj):
+@should_iterate.register(dict)
+def should_iterate_dict(obj):
     return False
+
 
 @composable
-def flatten(obj, iterate=iterate):
+def flatten(obj, should_iterate=should_iterate):
     """ Yield items from all sub-iterables from obj. """
     stack = [iter([obj])]
     while stack:
@@ -41,7 +42,9 @@ def flatten(obj, iterate=iterate):
         except StopIteration:
             stack.pop()
         else:
-            if hasattr(item, '__iter__') and iterate(item):
+            # read this as ...
+            # if can iterate and should iterate
+            if hasattr(item, '__iter__') and should_iterate(item):
                 stack.append(iter(item))
             else:
                 yield item

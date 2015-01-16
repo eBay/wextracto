@@ -20,7 +20,7 @@ from lxml.html import XHTML_NAMESPACE, HTMLParser
 
 from .composed import composable
 from .cache import cached
-from .iterable import flatten, map_when, iterate
+from .iterable import flatten, map_when, should_iterate
 from .ncr import replace_invalid_ncr
 
 SKIP = object()
@@ -37,8 +37,8 @@ space_join = composable(' '.join)
 
 default_namespaces = {'re': 'http://exslt.org/regular-expressions'}
 
-@iterate.register(_Element)
-def iterable__Element(obj):
+@should_iterate.register(_Element)
+def should_iterate_etree_element(obj):
     return False
 
 
@@ -116,7 +116,7 @@ def css(expression):
         The callable returned accepts a :class:`wex.response.Response`, a
         list of elements or an individual element as an argument.
     """
-    return parse | map_when(iterate)(CSSSelector(expression))
+    return parse | map_when(should_iterate)(CSSSelector(expression))
 
 
 def xpath(expression, namespaces=default_namespaces):
@@ -139,11 +139,11 @@ def xpath(expression, namespaces=default_namespaces):
             >>> selector = xpath('//h1')
 
     """
-    return parse | map_when(iterate)(XPath(expression, namespaces=namespaces))
+    return parse | map_when(should_iterate)(XPath(expression, namespaces=namespaces))
 
 
 def attrib(name, default=None, filter=partial(filter, None)):
-    return map_when(iterate, filter=filter)(methodcaller('get', name, default))
+    return map_when(should_iterate, filter=filter)(methodcaller('get', name, default))
 
 
 def base_url_join(urlgetter, **map_when_kw):
@@ -159,7 +159,7 @@ def base_url_join(urlgetter, **map_when_kw):
             return urljoin(base_url, url)
         return url
     filter_func = partial(filter, None)
-    return map_when(iterate, filter=filter_func, **map_when_kw)(base_url_join)
+    return map_when(should_iterate, filter=filter_func, **map_when_kw)(base_url_join)
 
 
 href = base_url_join(methodcaller('get', 'href'))
