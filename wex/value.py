@@ -79,10 +79,11 @@ class Value(tuple):
         """ Adds zero or more labels to this value. """
         return self.__class__(tuple(map(text_type, labels)) + self)
 
+
 def iterate_values(obj):
-    if isinstance(obj, (list, tuple)):
-        return False
-    return iterate(obj)
+    # when yielding values we *dont* want to iterate lists and tuples
+    return not isinstance(obj, (list, tuple)) and iterate(obj)
+
 
 def yield_values(extract, *args, **kw):
     """ Yields ``Value`` objects extracted using ``extract``. """

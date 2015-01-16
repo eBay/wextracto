@@ -20,7 +20,7 @@ from lxml.html import XHTML_NAMESPACE, HTMLParser
 
 from .composed import composable
 from .cache import cached
-from .iterable import flatten, maybe_map, iterate
+from .iterable import flatten, map_when, iterate
 from .ncr import replace_invalid_ncr
 
 SKIP = object()
@@ -116,7 +116,7 @@ def css(expression):
         The callable returned accepts a :class:`wex.response.Response`, a
         list of elements or an individual element as an argument.
     """
-    return parse | maybe_map(CSSSelector(expression))
+    return parse | map_when(iterate)(CSSSelector(expression))
 
 
 def xpath(expression, namespaces=default_namespaces):
@@ -139,14 +139,14 @@ def xpath(expression, namespaces=default_namespaces):
             >>> selector = xpath('//h1')
 
     """
-    return parse | maybe_map(XPath(expression, namespaces=namespaces))
+    return parse | map_when(iterate)(XPath(expression, namespaces=namespaces))
 
 
-def attrib(name, default=None):
-    return maybe_map(methodcaller('get', name, default))
+def attrib(name, default=None, filter=partial(filter, None)):
+    return map_when(iterate, filter=filter)(methodcaller('get', name, default))
 
 
-def base_url_join(urlgetter):
+def base_url_join(urlgetter, **map_when_kw):
     def base_url_join(elem_or_tree, *args, **kwargs):
         if hasattr(elem_or_tree, 'getroottree'):
             tree = elem_or_tree.getroottree()
@@ -158,11 +158,12 @@ def base_url_join(urlgetter):
         if hasattr(url, 'find'):
             return urljoin(base_url, url)
         return url
-    return maybe_map(base_url_join)
+    filter_func = partial(filter, None)
+    return map_when(iterate, filter=filter_func, **map_when_kw)(base_url_join)
 
 
-href = base_url_join(methodcaller('get', 'href', SKIP))
-src = base_url_join(methodcaller('get', 'src', SKIP))
+href = base_url_join(methodcaller('get', 'href'))
+src = base_url_join(methodcaller('get', 'src'))
 
 
 @composable

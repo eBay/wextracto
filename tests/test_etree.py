@@ -18,6 +18,7 @@ X-wex-request-url: http://some.com/
     <div id="div1">
       <a href="/1"></a>
       <a href="/2"></a>
+      <a></a>
     </div>
     <div id="iter_text">This is <span>some </span>text.</div>
     <div id="nbsp">&nbsp;</div>
@@ -93,14 +94,14 @@ def test_attrib():
     assert f(response(example)) == ['/1', '/2']
 
 
+def test_attrib_filter_false():
+    f = e.css('#div1 a') | e.attrib('nosuch', filter=False) | list
+    assert f(response(example)) == [None, None, None]
+
+
 def test_attrib_default():
-    f = e.css('#div1 a') | e.attrib('nosuch', '') | list
-    assert f(response(example)) == ['', '']
-
-
-def test_attrib_missing_default():
-    f = e.css('#div1 a') | e.attrib('nosuch') | list
-    assert f(response(example)) == [None, None]
+    f = e.css('#div1 a') | e.attrib('nosuch', '', filter=False) | list
+    assert f(response(example)) == ['', '', '']
 
 
 def test_href():

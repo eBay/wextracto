@@ -17,7 +17,7 @@ from pkg_resources import iter_entry_points
 from publicsuffix import PublicSuffixList
 
 from .composed import composable
-from .iterable import flatmap
+from .iterable import iterate, map_when
 from .value import json_encode
 
 
@@ -148,22 +148,22 @@ def url_attr_1(obj):
     return getattr(obj, 'url', obj)
 
 parse_url_1 = url_attr_1 | urlparse
-parse_url = flatmap(parse_url_1)
+parse_url = map_when(iterate)(parse_url_1)
 
 url_query_1 = parse_url_1 | attrgetter('query')
-url_query = flatmap(url_query_1)
+url_query = map_when(iterate)(url_query_1)
 
 url_path_1 = parse_url_1 | attrgetter('path')
-url_path = flatmap(url_path_1)
+url_path = map_when(iterate)(url_path_1)
 
 url_hostname_1 = parse_url_1 | attrgetter('hostname')
-url_hostname = flatmap(url_hostname_1)
+url_hostname = map_when(iterate)(url_hostname_1)
 
 url_query_dict_1 = url_query_1 | parse_qs
-url_query_dict = flatmap(url_query_dict_1)
+url_query_dict = map_when(iterate)(url_query_dict_1)
 
 url_query_list_1 = url_query_1 | parse_qsl
-url_query_list = flatmap(url_query_list_1)
+url_query_list = map_when(iterate)(url_query_list_1)
 
 
 def url_query_param_1(name, default=[]):
@@ -171,7 +171,7 @@ def url_query_param_1(name, default=[]):
 
 
 def url_query_param(name, default=[]):
-    return flatmap(url_query_param_1(name, default))
+    return map_when(iterate)(url_query_param_1(name, default))
 
 
 def filter_url_query_1(*names, **kw):
@@ -199,16 +199,15 @@ def filter_url_query_1(*names, **kw):
 
     return url_query_filter
 
+
 def filter_url_query(*names, **kw):
-    return flatmap(filter_url_query_1(*names, **kw))
+    return map_when(iterate)(filter_url_query_1(*names, **kw))
 
 
-strip_url_query_1 = filter_url_query_1()
-strip_url_query = flatmap(strip_url_query_1)
+strip_url_query = map_when(iterate)(filter_url_query_1())
 
 
 @composable
-def public_suffix_1(src):
+@map_when(iterate)
+def public_suffix(src):
     return public_suffix_list.get_public_suffix(url_hostname_1(src) or src)
-
-public_suffix = flatmap(public_suffix_1)

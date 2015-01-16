@@ -22,11 +22,11 @@ def test_clean_ncr():
     assert ncr.clean_ncr(b'&#x95;', True) == (b"&#x2022;", b'', None)
 
 
-def Xtest_clean_ncr_script_cdata():
+def test_clean_ncr_script_cdata():
     assert ncr.clean_ncr(script, True) == (script, b'', None)
 
 
-def Xtest_clean_ncr_partial_script():
+def test_clean_ncr_partial_script():
     html = script[:script.find(b'</')]
     assert ncr.clean_ncr(html, True) == (html, b'', b'script')
 

@@ -31,15 +31,39 @@ def iterate_str(obj):
 def iterate_dict(obj):
     return False
 
+@composable
+def flatten(obj, iterate=iterate):
+    """ Yield items from all sub-iterables from obj. """
+    stack = [iter([obj])]
+    while stack:
+        try:
+            item = next(stack[-1])
+        except StopIteration:
+            stack.pop()
+        else:
+            if hasattr(item, '__iter__') and iterate(item):
+                stack.append(iter(item))
+            else:
+                yield item
 
-def maybe_map(func):
-    @composable
-    #@wraps(func)
-    def wrapper(arg0):
-        if hasattr(arg0, '__iter__') and iterate(arg0):
-            return map(func, arg0)
-        return func(arg0)
-    return wrapper
+
+def map_when(cond, **kw):
+    flatten_func = kw.pop('flatten', flatten)
+    filter_func = kw.pop('filter', None)
+
+    def map_when_decorator(func):
+        @composable
+        #@wraps(func)
+        def map_when(arg0):
+            if hasattr(arg0, '__iter__') and cond(arg0):
+                iterable = flatten_func(arg0) if flatten_func else arg0
+                mapped = map(func, iterable)
+                if filter_func:
+                    return filter_func(mapped)
+                return mapped
+            return func(arg0)
+        return map_when
+    return map_when_decorator
 
 
 @composable
@@ -98,29 +122,17 @@ def one_or_none(iterable):
         return None
 
 
-@composable
-def flatten(obj, iterate=iterate):
-    """ Yield items from all sub-iterables from obj. """
-    stack = [iter([obj])]
-    while stack:
-        try:
-            item = next(stack[-1])
-        except StopIteration:
-            stack.pop()
-        else:
-            if hasattr(item, '__iter__') and iterate(item):
-                stack.append(iter(item))
-            else:
-                yield item
-
-
-def flatmap(func, *args, **kwargs):
+def map_partial(func, *args, **kwargs):
     """ Returns a function that maps a function over a flattened iterable. """
     partial_func = partial(func, *args, **kwargs)
     @composable
-    def flatmap(iterable):
-        return map(partial_func, flatten(iterable))
-    return flatmap
+    def map_partial(iterable):
+        return map(partial_func, iterable)
+    return map_partial
+
+
+def map_flat(func, *args, **kwargs):
+    return flatten | map_partial(func, *args, **kwargs)
 
 
 def islice(*islice_args):
