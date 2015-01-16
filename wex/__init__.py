@@ -1,8 +1,8 @@
 """
 Wextracto is a library for extracting data from web resources.
 
-:copyright: (c) 2012-2014
+:copyright: (c) 2012-2015
 
 """
 
-__version__ = '0.3.5'  # pragma: no cover
+__version__ = '0.3.6'  # pragma: no cover
