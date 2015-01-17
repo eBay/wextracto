@@ -51,8 +51,8 @@ def test_flatten_nested():
     assert list(i.flatten([['a'], ['b', 'c']])) == ['a', 'b', 'c']
 
 
-def test_flatmap():
-    f = i.flatmap(str) | list
+def test_map_flat():
+    f = i.map_flat(str) | list
     assert f(range(2)) == ['0', '1']
 
 

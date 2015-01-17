@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-from wex.iterable import flatmap
+from wex.iterable import map_flat
 from operator import methodcaller
 
 
@@ -7,7 +7,7 @@ space_join = ' '.join
 
 def split(*split_args):
     split_func = methodcaller('split', *split_args)
-    return flatmap(split_func)
+    return map_flat(split_func)
 
 # with default arguments splits whitespace
 split_ws = split()
@@ -15,7 +15,7 @@ split_ws = split()
 def norm_ws_1(s):
     return space_join(s.split())
 
-norm_ws = flatmap(norm_ws_1)
+norm_ws = map_flat(norm_ws_1)
 
 
 def partition(separator, **kw):
@@ -30,4 +30,4 @@ def partition(separator, **kw):
             tail = norm_tail(tail)
         if sep:
             yield (head, tail)
-    return flatmap(partition_1)
+    return map_flat(partition_1)

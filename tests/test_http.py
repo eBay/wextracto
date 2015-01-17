@@ -39,7 +39,7 @@ def test_get_gzip():
 
 def test_post():
     method = {"post":{"data":{"x":"1"}}}
-    url = URL('http://httpbin.org/post').update_fragment(method=method)
+    url = URL('http://httpbin.org/post').update_fragment_dict(method=method)
     for readable in url.get():
         response = Response.from_readable(readable)
         data = json.load(utf8_reader(response))

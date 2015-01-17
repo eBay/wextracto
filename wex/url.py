@@ -5,7 +5,7 @@ from operator import attrgetter, methodcaller
 from hashlib import md5
 from contextlib import contextmanager
 from six import text_type, string_types, next
-from six.moves import filter, filterfalse
+from six.moves import filter
 from six.moves.urllib_parse import (urlparse,
                                     urlunparse,
                                     parse_qs,
@@ -17,6 +17,7 @@ from pkg_resources import iter_entry_points
 from publicsuffix import PublicSuffixList
 
 from .composed import composable
+from .iterable import should_iterate, map_when
 from .value import json_encode
 
 
@@ -72,8 +73,8 @@ class URL(text_type):
 
 
     @property
-    def fragment(self):
-        """ Client side data represented as JSON in the fragment. """
+    def fragment_dict(self):
+        """ Client side data dict represented as JSON in the fragment. """
         if not self.parsed.fragment:
             return {}
 
@@ -83,15 +84,18 @@ class URL(text_type):
             fragment = self.parsed.fragment
 
         try:
-            return json.loads(fragment)
+            data = json.loads(fragment)
+            if not isinstance(data, dict):
+                data = {}
         except ValueError:
-            pass
-        return {}
+            data = {}
 
-    def update_fragment(self, **kw):
-        fragment = dict(self.fragment)
-        fragment.update(kw)
-        fragment = json_encode(fragment)
+        return data
+
+    def update_fragment_dict(self, **kw):
+        fragment_dict = dict(self.fragment_dict)
+        fragment_dict.update(kw)
+        fragment = json_encode(fragment_dict)
         return self.__class__(urlunparse(self.parsed._replace(fragment=fragment)))
 
     @property
@@ -100,7 +104,7 @@ class URL(text_type):
         if not self.parsed.scheme:
             raise ValueError("URL has no scheme")
 
-        method = self.fragment.get('method', DEFAULT_METHOD)
+        method = self.fragment_dict.get('method', DEFAULT_METHOD)
 
         if isinstance(method, string_types):
             return Method(self.parsed.scheme, method, {})
@@ -143,22 +147,37 @@ public_suffix_list = PublicSuffixList()
 
 
 @composable
-def get_url(obj):
+def url_attr_1(obj):
     return getattr(obj, 'url', obj)
 
-parse_url = get_url | urlparse
-url_query = parse_url | attrgetter('query')
-url_path = parse_url | attrgetter('path')
-url_hostname = parse_url | attrgetter('hostname')
-url_query_dict = url_query | parse_qs
-url_query_list = url_query | parse_qsl
+parse_url_1 = url_attr_1 | urlparse
+parse_url = map_when(should_iterate)(parse_url_1)
+
+url_query_1 = parse_url_1 | attrgetter('query')
+url_query = map_when(should_iterate)(url_query_1)
+
+url_path_1 = parse_url_1 | attrgetter('path')
+url_path = map_when(should_iterate)(url_path_1)
+
+url_hostname_1 = parse_url_1 | attrgetter('hostname')
+url_hostname = map_when(should_iterate)(url_hostname_1)
+
+url_query_dict_1 = url_query_1 | parse_qs
+url_query_dict = map_when(should_iterate)(url_query_dict_1)
+
+url_query_list_1 = url_query_1 | parse_qsl
+url_query_list = map_when(should_iterate)(url_query_list_1)
+
+
+def url_query_param_1(name, default=[]):
+    return url_query_dict_1 | methodcaller('get', name, default)
 
 
 def url_query_param(name, default=[]):
-    return url_query_dict | methodcaller('get', name, default)
+    return map_when(should_iterate)(url_query_param_1(name, default))
 
 
-def filter_url_query(*names, **kw):
+def filter_url_query_1(*names, **kw):
 
     names = set(names)
     exclude = kw.pop('exclude', False)
@@ -176,7 +195,7 @@ def filter_url_query(*names, **kw):
 
     @composable
     def url_query_filter(obj):
-        parsed = parse_url(obj)
+        parsed = parse_url_1(obj)
         qsl = list(filter(pred, parse_qsl(parsed.query)))
         filtered_query = urlencode(qsl)
         return urlunparse(parsed._replace(query=filtered_query))
@@ -184,9 +203,14 @@ def filter_url_query(*names, **kw):
     return url_query_filter
 
 
-strip_url_query = filter_url_query()
+def filter_url_query(*names, **kw):
+    return map_when(should_iterate)(filter_url_query_1(*names, **kw))
+
+
+strip_url_query = map_when(should_iterate)(filter_url_query_1())
 
 
 @composable
-def public_suffix(src, **kw):
-    return public_suffix_list.get_public_suffix(url_hostname(src) or src)
+@map_when(should_iterate)
+def public_suffix(src):
+    return public_suffix_list.get_public_suffix(url_hostname_1(src) or src)

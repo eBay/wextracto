@@ -7,13 +7,13 @@ from wex import url as u
 
 def test_fragment_quoted():
     # requests quotes the fragment - but we do know how to unquote
-    assert URL('http://foo.com/path#%7B%22a%22%3A1%7D').fragment == {'a': 1}
+    assert URL('http://foo.com/path#%7B%22a%22%3A1%7D').fragment_dict == {'a': 1}
 
 
-def test_update_fragment():
+def test_update_fragment_dict():
     original = 'http://foo.com/path#{"method":"get"}'
     updated = 'http://foo.com/path#{"cheeky":true,"method":"get"}'
-    assert URL(original).update_fragment(cheeky=True) == updated
+    assert URL(original).update_fragment_dict(cheeky=True) == updated
 
 
 def test_method_no_fragment():
@@ -26,6 +26,10 @@ def test_method_fragment_not_json():
 
 def test_method_fragment_not_json_dict():
     assert URL('http://foo.com/path#{3').method.name == u.DEFAULT_METHOD
+
+
+def test_method_fragment_not_dict():
+    assert URL('http://foo.com/path#3').method.name == u.DEFAULT_METHOD
 
 
 def test_method_fragment_no_method_key():
@@ -74,13 +78,14 @@ url1_parsed = ('http', 'www.foo.com', '/g', '', 'this=1&that=2', '')
 
 # For each test we use a composed function because that checks
 # that we've got the composable decorator on the function.
+#
 
-identity = lambda x: x
+identity = (lambda x: x)
 
 parse_url = u.parse_url | identity
 public_suffix = u.public_suffix | identity
 param = u.url_query_param('this') | identity
-param_with_default = u.url_query_param('other', ['2']) | identity
+param_with_default = u.url_query_param('other', ['2']) | list
 include_query_params = u.filter_url_query('that') | identity
 exclude_query_params = u.filter_url_query('this', exclude=True) | identity
 strip_url_query = u.strip_url_query | identity
