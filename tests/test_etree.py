@@ -105,8 +105,11 @@ def test_attrib_default():
 
 
 def test_href():
-    f = e.css('#div1 a') | e.href | list
-    assert f(response(example)) == ['http://base.com/1', 'http://base.com/2']
+    f = e.css('#div1 a') | e.href # | list
+    res = f(response(example))
+    # we want the result to be an iterable, but not a list
+    assert not isinstance(res, list)
+    assert list(res) == ['http://base.com/1', 'http://base.com/2']
 
 
 def test_href_single():

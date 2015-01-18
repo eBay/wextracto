@@ -7,6 +7,7 @@ from __future__ import absolute_import, unicode_literals, print_function
 import logging
 import wex.py2compat ; assert wex.py2compat
 from six import string_types
+from six.moves import filter
 from six.moves.urllib_parse import urljoin, quote, unquote
 from functools import partial
 from operator import is_, methodcaller
