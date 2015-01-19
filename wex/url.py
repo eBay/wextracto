@@ -22,7 +22,11 @@ from .value import json_encode
 
 
 DEFAULT_METHOD = 'get'
-PC_NAME_MAX = os.pathconf(os.path.dirname(__file__), 'PC_NAME_MAX')
+
+if hasattr(os, 'pathconf'):
+    PC_NAME_MAX = os.pathconf(os.path.dirname(__file__), 'PC_NAME_MAX')
+else:
+    PC_NAME_MAX = 255  # pragma: no cover
 
 
 @contextmanager
