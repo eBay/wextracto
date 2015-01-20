@@ -21,7 +21,7 @@ from lxml.html import XHTML_NAMESPACE, HTMLParser
 
 from .composed import composable
 from .cache import cached
-from .iterable import flatten, map_when, should_iterate
+from .iterable import flatten, map_if_iter, filter_if_iter
 from .ncr import replace_invalid_ncr
 
 SKIP = object()
@@ -38,10 +38,6 @@ space_join = composable(' '.join)
 
 default_namespaces = {'re': 'http://exslt.org/regular-expressions'}
 
-@should_iterate.register(_Element)
-def should_iterate_etree_element(obj):
-    return False
-
 
 class WrapsShim(object):
 
@@ -56,6 +52,20 @@ class WrapsShim(object):
         return getattr(self.wrapped, attr, self.assignments[attr])
 
 
+def create_html_parser(headers):
+
+    charset = headers.get_content_charset()
+    try:
+        if charset and codecs.lookup(charset).name == 'iso8859-1':
+            charset = 'windows-1252'
+    except LookupError:
+        pass
+
+    # if charset is not specified in the Content-Type, this will be
+    # None ; encoding=None produces default (ISO 8859-1) behavior.
+    return HTMLParser(encoding=charset)
+
+
 @composable
 @cached
 def parse(src):
@@ -66,17 +76,8 @@ def parse(src):
     if not hasattr(src, 'read'):
         return src
 
-    charset = src.headers.get_content_charset()
-    try:
-        if charset and codecs.lookup(charset).name == 'iso8859-1':
-            charset = 'windows-1252'
-    except LookupError:
-        pass
-
+    parser = create_html_parser(src.headers)
     etree = _ElementTree()
-    # if charset is not specified in the Content-Type, this will be
-    # None ; encoding=None produces default (ISO 8859-1) behavior.
-    parser = HTMLParser(encoding=charset)
     try:
         # Sometimes we get URLs containing characters that aren't
         # acceptable to lxml (e.g. "http:/foo.com/bar?this=array[]").
@@ -117,7 +118,7 @@ def css(expression):
         The callable returned accepts a :class:`wex.response.Response`, a
         list of elements or an individual element as an argument.
     """
-    return parse | map_when(should_iterate)(CSSSelector(expression))
+    return parse | map_if_iter(CSSSelector(expression))
 
 
 def xpath(expression, namespaces=default_namespaces):
@@ -140,31 +141,32 @@ def xpath(expression, namespaces=default_namespaces):
             >>> selector = xpath('//h1')
 
     """
-    return parse | map_when(should_iterate)(XPath(expression, namespaces=namespaces))
+    return parse | map_if_iter(XPath(expression, namespaces=namespaces))
 
 
-def attrib(name, default=None, filter=partial(filter, None)):
-    return map_when(should_iterate, filter=filter)(methodcaller('get', name, default))
+def attrib(name, default=None):
+    getter = methodcaller('get', name, default)
+    mapper = map_if_iter(getter)
+    return mapper
 
 
-def base_url_join(urlgetter, **map_when_kw):
+def join_to_base_url(url_getter):
     def base_url_join(elem_or_tree, *args, **kwargs):
         if hasattr(elem_or_tree, 'getroottree'):
             tree = elem_or_tree.getroottree()
         else:
             tree = elem_or_tree
         base_url = get_base_url(tree.getroot())
-        url = urlgetter(elem_or_tree)
+        url = url_getter(elem_or_tree)
         # urljoin requires 'find' so give up if we don't find it (e.g. None)
         if hasattr(url, 'find'):
-            return urljoin(base_url, url)
+            return urljoin(base_url, url.strip())
         return url
-    filter_func = partial(filter, None)
-    return map_when(should_iterate, filter=filter_func, **map_when_kw)(base_url_join)
+    return map_if_iter(base_url_join) | filter_if_iter(None)
 
 
-href = base_url_join(methodcaller('get', 'href'))
-src = base_url_join(methodcaller('get', 'src'))
+href = join_to_base_url(methodcaller('get', 'href'))
+src = join_to_base_url(methodcaller('get', 'src'))
 
 
 @composable

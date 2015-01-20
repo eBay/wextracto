@@ -1,6 +1,7 @@
 import os
 import errno
 import json
+import logging
 from operator import attrgetter, methodcaller
 from hashlib import md5
 from contextlib import contextmanager
@@ -17,9 +18,10 @@ from pkg_resources import iter_entry_points
 from publicsuffix import PublicSuffixList
 
 from .composed import composable
-from .iterable import should_iterate, map_when
+from .iterable import map_if_iter
 from .value import json_encode
 
+logger = logging.getLogger('__name__')
 
 DEFAULT_METHOD = 'get'
 
@@ -84,6 +86,8 @@ class URL(text_type):
 
         if self.parsed.fragment.startswith('%7B'):
             fragment = unquote(self.parsed.fragment)
+        elif not self.parsed.fragment.startswith('{'):
+            return {}
         else:
             fragment = self.parsed.fragment
 
@@ -155,22 +159,22 @@ def url_attr_1(obj):
     return getattr(obj, 'url', obj)
 
 parse_url_1 = url_attr_1 | urlparse
-parse_url = map_when(should_iterate)(parse_url_1)
+parse_url = map_if_iter(parse_url_1)
 
 url_query_1 = parse_url_1 | attrgetter('query')
-url_query = map_when(should_iterate)(url_query_1)
+url_query = map_if_iter(url_query_1)
 
 url_path_1 = parse_url_1 | attrgetter('path')
-url_path = map_when(should_iterate)(url_path_1)
+url_path = map_if_iter(url_path_1)
 
 url_hostname_1 = parse_url_1 | attrgetter('hostname')
-url_hostname = map_when(should_iterate)(url_hostname_1)
+url_hostname = map_if_iter(url_hostname_1)
 
 url_query_dict_1 = url_query_1 | parse_qs
-url_query_dict = map_when(should_iterate)(url_query_dict_1)
+url_query_dict = map_if_iter(url_query_dict_1)
 
 url_query_list_1 = url_query_1 | parse_qsl
-url_query_list = map_when(should_iterate)(url_query_list_1)
+url_query_list = map_if_iter(url_query_list_1)
 
 
 def url_query_param_1(name, default=[]):
@@ -178,7 +182,7 @@ def url_query_param_1(name, default=[]):
 
 
 def url_query_param(name, default=[]):
-    return map_when(should_iterate)(url_query_param_1(name, default))
+    return map_if_iter(url_query_param_1(name, default))
 
 
 def filter_url_query_1(*names, **kw):
@@ -208,13 +212,13 @@ def filter_url_query_1(*names, **kw):
 
 
 def filter_url_query(*names, **kw):
-    return map_when(should_iterate)(filter_url_query_1(*names, **kw))
+    return map_if_iter(filter_url_query_1(*names, **kw))
 
 
-strip_url_query = map_when(should_iterate)(filter_url_query_1())
+strip_url_query = map_if_iter(filter_url_query_1())
 
 
 @composable
-@map_when(should_iterate)
+@map_if_iter
 def public_suffix(src):
     return public_suffix_list.get_public_suffix(url_hostname_1(src) or src)

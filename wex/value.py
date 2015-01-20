@@ -28,7 +28,7 @@ from operator import itemgetter
 from six import PY2, text_type, reraise
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
-from .iterable import flatten, should_iterate
+from .iterable import flatten, do_not_iter
 
 
 TAB = '\t'
@@ -80,18 +80,15 @@ class Value(tuple):
         return self.__class__(tuple(map(text_type, labels)) + self)
 
 
-def should_iterate_unless_list_or_tuple(obj):
-    # when yielding values we *dont* want to iterate lists and tuples
-    return not isinstance(obj, (list, tuple)) and should_iterate(obj)
-
-
 def yield_values(extract, *args, **kw):
     """ Yields ``Value`` objects extracted using ``extract``. """
     exc_info = ()
 
     try:
         res = extract(*args, **kw)
-        for val in flatten(res, should_iterate_unless_list_or_tuple):
+        # don't flatten lists or tuples here because we want them
+        # to come out as values
+        for val in flatten(res, do_not_iter + (list, tuple)):
             yield Value(val)
     except Exception as exc:
         exc_info = sys.exc_info()

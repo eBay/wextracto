@@ -24,10 +24,6 @@ if six.PY2:
     def parse_headers(fp):
         return HTTPMessage(fp, 0)
 
-    import singledispatch
-    import functools
-    functools.singledispatch = singledispatch.singledispatch
-
 else:
 
     from http.client import parse_headers  # pragma: no cover

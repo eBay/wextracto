@@ -21,7 +21,7 @@ def request(url, method, session=None, **kw):
         session.stream = True
 
     response = session.request(
-        method.name,
+        kw.pop('http_method', method.name),
         url,
         params=method.args.get('params', None),
         data=method.args.get('data', None),

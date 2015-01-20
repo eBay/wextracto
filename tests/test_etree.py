@@ -17,7 +17,7 @@ X-wex-request-url: http://some.com/
     <h1>hi</h1>
     <div id="div1">
       <a href="/1"></a>
-      <a href="/2"></a>
+      <a href=" /2 "></a>
       <a></a>
     </div>
     <div id="iter_text">This is <span>some </span>text.</div>
@@ -91,16 +91,11 @@ def test_css():
 
 def test_attrib():
     f = e.css('#div1 a') | e.attrib('href') | list
-    assert f(response(example)) == ['/1', '/2']
-
-
-def test_attrib_filter_false():
-    f = e.css('#div1 a') | e.attrib('nosuch', filter=False) | list
-    assert f(response(example)) == [None, None, None]
+    assert f(response(example)) == ['/1', ' /2 ', None]
 
 
 def test_attrib_default():
-    f = e.css('#div1 a') | e.attrib('nosuch', '', filter=False) | list
+    f = e.css('#div1 a') | e.attrib('nosuch', '') | list
     assert f(response(example)) == ['', '', '']
 
 
@@ -176,11 +171,11 @@ def test_list_text():
     assert func(response(example)) == ['1', '', '2']
 
 
-def test_base_url_join_not_joinable():
+def test_join_to_base_url_not_joinable():
     obj = object()
     def not_joinable(src):
         return obj
-    f = e.base_url_join(not_joinable)
+    f = e.join_to_base_url(not_joinable)
     ret = f(e.parse(response(example)))
     assert ret is obj
 
