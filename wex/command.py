@@ -19,6 +19,7 @@ For the complete list of command line arguments run:
 """
 from __future__ import absolute_import, unicode_literals, print_function
 import argparse
+import logging.config
 from multiprocessing import cpu_count
 from pkg_resources import resource_filename
 from .readable import readables_from_paths
@@ -114,7 +115,8 @@ class WriteExtractedValues(object):
 
 def main():
 
-    import logging.config ; logging.config.fileConfig(default_logging_conf)
+    logging.config.fileConfig(default_logging_conf,
+                              disable_existing_loggers=False)
 
     args = argparser.parse_args()
     extract = extractor_from_entry_points()
