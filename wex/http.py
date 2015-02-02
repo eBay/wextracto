@@ -20,8 +20,10 @@ def request(url, method, session=None, **kw):
         session = requests.Session()
         session.stream = True
 
+    decode_content = kw.get('decode_content', True)
+
     response = session.request(
-        kw.pop('http_method', method.name),
+        kw.get('http_method', method.name),
         url,
         params=method.args.get('params', None),
         data=method.args.get('data', None),
@@ -30,7 +32,7 @@ def request(url, method, session=None, **kw):
         timeout=timeout,
         allow_redirects=False,
     )
-    yield readable_from_response(response, url, **kw)
+    yield readable_from_response(response, url, decode_content)
 
     redirects = session.resolve_redirects(response, response.request,
                                           stream=True, timeout=timeout)
