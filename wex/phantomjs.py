@@ -26,13 +26,20 @@ def request_using_phantomjs(url, method, session=None, **kw):
         'wex_url': url,
         'wexout': fifo_path,
         'settings': settings,
+        'evaluate': [],
     }
+
+    for evaluate in method.args.get('evaluate', []):
+        filename = resource_filename(*evaluate)
+        request['evaluate'].append(filename)
+
     phantomjs.stdin.write(json.dumps(request) + '\n')
     phantomjs.stdin.flush()
     try:
         yield open(fifo_path, 'r')
     finally:
         os.unlink(fifo_path)
+    assert phantomjs.wait() == 0
 
 
 def mkfifo(phantomjs):
