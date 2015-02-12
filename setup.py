@@ -49,11 +49,13 @@ setup(
         get = wex.http:request
         post = wex.http:request
         phantomjs = wex.phantomjs:request_using_phantomjs
+        form = wex.form:submit_form
 
         [wex.method.https]
         get = wex.http:request
         post = wex.http:request
         phantomjs = wex.phantomjs:request_using_phantomjs
+        form = wex.form:submit_form
 
         [wex.method.ftp]
         get = wex.ftp:get
