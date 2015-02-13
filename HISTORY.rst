@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.4 (2015-02-12)
+++++++++++++++++++
+
+  * Now we flatten labels and values.
+  * href and src become href_url and src_url.
+
 0.3 (2014-12-29)
 ++++++++++++++++++
 
