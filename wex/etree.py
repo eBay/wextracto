@@ -149,7 +149,7 @@ def attrib(name, default=None):
     return mapper
 
 
-def join_to_base_url(url_getter):
+def join_to_base_url(url_getter, same_domain=True):
     def base_url_join(elem_or_tree, *args, **kwargs):
         if hasattr(elem_or_tree, 'getroottree'):
             tree = elem_or_tree.getroottree()
@@ -159,13 +159,25 @@ def join_to_base_url(url_getter):
         url = url_getter(elem_or_tree)
         # urljoin requires 'find' so give up if we don't find it (e.g. None)
         if hasattr(url, 'find'):
-            return urljoin(base_url, url.strip())
+            joined_url = urljoin(base_url, url.strip())
+            if (same_domain and 
+                not joined_url.startswith(urljoin(base_url, '/'))):
+                return None
+            return joined_url
         return url
     return map_if_iter(base_url_join) | filter_if_iter(None)
 
 
-href = join_to_base_url(methodcaller('get', 'href'))
-src = join_to_base_url(methodcaller('get', 'src'))
+#: A :class:`wex.composed.ComposedFunction` that returns the absolute
+#: URL from an ``href`` attribute as long as it is from the same domain
+#: as the base URl of the response.
+href_url = join_to_base_url(methodcaller('get', 'href'), same_domain=True)
+#: A :class:`wex.composed.ComposedFunction` that returns the absolute
+#: URL from an ``href`` attribute.
+href_any_url = join_to_base_url(methodcaller('get', 'href'), same_domain=False)
+#: A :class:`wex.composed.ComposedFunction` that returns the absolute
+#: URL from an ``src`` attribute.
+src_url = join_to_base_url(methodcaller('get', 'src'), same_domain=False)
 
 
 @composable

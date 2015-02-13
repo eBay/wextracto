@@ -20,6 +20,12 @@ X-wex-request-url: http://some.com/
       <a href=" /2 "></a>
       <a></a>
     </div>
+   <img src="http://other.com/src" />
+    <div id="links">
+      <a href="/1"></a>
+      <a href="http://base.com/2"></a>
+      <a href="http://other.com/"></a>
+    </div>
     <div id="iter_text">This is <span>some </span>text.</div>
     <div id="nbsp">&nbsp;</div>
     <div id="br">oh<br>my</div>
@@ -101,8 +107,16 @@ def test_attrib_default():
     assert f(response(example)) == ['', '', '']
 
 
-def test_href():
-    f = e.css('#div1 a') | e.href
+def test_img_src():
+    f = e.css('img') | e.src_url
+    res = f(response(example))
+    assert hasattr(res, '__iter__')
+    assert not isinstance(res, list)
+    assert list(res) == ['http://other.com/src']
+
+
+def test_href_url():
+    f = e.css('#links a') | e.href_url
     res = f(response(example))
     # we want the result to be an iterable, but not a list
     assert hasattr(res, '__iter__')
@@ -110,13 +124,22 @@ def test_href():
     assert list(res) == ['http://base.com/1', 'http://base.com/2']
 
 
-def test_href_single():
-    f = e.css('#div1 a') | item0 | e.href
+def test_href_any_url():
+    f = e.css('#links a') | e.href_any_url
+    res = f(response(example))
+    # we want the result to be an iterable, but not a list
+    assert hasattr(res, '__iter__')
+    assert not isinstance(res, list)
+    assert list(res) == ['http://base.com/1', 'http://base.com/2', 'http://other.com/']
+
+
+def test_href_url_single():
+    f = e.css('#div1 a') | item0 | e.href_url
     assert f(response(example)) == 'http://base.com/1'
 
 
 def test_href_empty():
-    f = e.css('#nosuch') | e.href | list
+    f = e.css('#nosuch') | e.href_url | list
     assert f(response(example)) == []
 
 
@@ -182,8 +205,9 @@ def test_join_to_base_url_not_joinable():
     ret = f(e.parse(response(example)))
     assert ret is obj
 
+
 def test_href_when_url_contains_dodgy_characters():
-    f = e.css('a') | e.href | list
+    f = e.css('a') | e.href_url | list
     # This will fail if we don't quote/unquote the base_url
     assert f(response(example_with_dodgy_url)) == ['http://foo.com/1']
 
