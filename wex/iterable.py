@@ -17,23 +17,30 @@ class MultipleValuesError(ValueError):
     """ More than one value was found when one or none were expected. """
 
 
-do_not_iter = string_types + (dict, _Element)
+# we never want to iterate (or flatten) things of these types
+do_not_iter = string_types + (_Element,)
 
 
 @composable
-def flatten(obj, do_not_iter=do_not_iter):
+def flatten(item, unless_isinstance=do_not_iter):
     """ Yield items from all sub-iterables from obj. """
-    stack = [iter([obj])]
-    while stack:
-        try:
-            item = next(stack[-1])
-        except StopIteration:
-            stack.pop()
+    stack = []
+    while True:
+
+        if not hasattr(item, '__iter__') or isinstance(item, unless_isinstance):
+            yield item
         else:
-            if not hasattr(item, '__iter__') or isinstance(item, do_not_iter):
-                yield item
-            else:
-                stack.append(iter(item))
+            stack.append(iter(item))
+
+        while stack:
+            try:
+                item = next(stack[-1])
+                break
+            except StopIteration:
+                stack.pop()
+
+        if not stack:
+            break
 
 
 def map_if_iter(func):

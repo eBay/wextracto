@@ -82,9 +82,9 @@ class WexinFile(pytest.File):                        # pragma: no cover
         extract = extractor_from_entry_points()
         with self.fspath.open('rb') as readable:
             for value in Response.values_from_readable(extract, readable):
-                text = value.text()
-                labels, _, value = text.rpartition(TAB)
-                values.setdefault(labels, set()).add(value.strip())
+                for line in value.text():
+                    labels, _, value = line[:-1].rpartition(TAB)
+                    values.setdefault(labels, set()).add(value)
         return values
 
 

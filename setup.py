@@ -18,7 +18,7 @@ setup(
     packages=['wex'],
     package_data={
         '': ['LICENSE.txt', 'NOTICES.txt'],
-        'wex': ['logging.conf', 'phantomjs.js'],
+        'wex': ['logging.conf', 'phantomjs.js', 'js/*.js'],
     },
     zip_safe=False,
     install_requires=[

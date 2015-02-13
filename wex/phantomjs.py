@@ -33,10 +33,11 @@ def request_using_phantomjs(url, method, session=None, **kw):
         filename = resource_filename(*evaluate)
         request['evaluate'].append(filename)
 
-    phantomjs.stdin.write(json.dumps(request) + '\n')
+    request_line = json.dumps(request) + '\n'
+    phantomjs.stdin.write(request_line.encode('utf-8'))
     phantomjs.stdin.flush()
     try:
-        yield open(fifo_path, 'r')
+        yield open(fifo_path, 'rb')
     finally:
         os.unlink(fifo_path)
     assert phantomjs.wait() == 0

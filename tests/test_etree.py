@@ -86,7 +86,9 @@ def test_xpath_re_match():
 
 def test_css():
     f = e.css('h1')
-    assert [elem.tag for elem in f(response(example))] == ['h1']
+    res = f(response(example))
+    assert isinstance(res, list)
+    assert [elem.tag for elem in res] == ['h1']
 
 
 def test_attrib():
@@ -100,9 +102,10 @@ def test_attrib_default():
 
 
 def test_href():
-    f = e.css('#div1 a') | e.href # | list
+    f = e.css('#div1 a') | e.href
     res = f(response(example))
     # we want the result to be an iterable, but not a list
+    assert hasattr(res, '__iter__')
     assert not isinstance(res, list)
     assert list(res) == ['http://base.com/1', 'http://base.com/2']
 

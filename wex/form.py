@@ -1,7 +1,7 @@
 import requests
 from six import iteritems
 from six import BytesIO
-from urlparse import urljoin
+from six.moves.urllib_parse import urljoin
 from .py2compat import parse_headers
 from .iterable import one
 from .http import timeout, readable_from_response
@@ -36,7 +36,7 @@ class ParserReadable(object):
             if len(buf) < size:
                 if self.root is None:
                     self.root = self.parser.close()
-                    url = self.headers.getheader('X-wex-request-url')
+                    url = self.headers.get('X-wex-request-url')
                     # this sets the .base_url
                     self.root.getroottree().docinfo.URL = url
         return buf

@@ -21,7 +21,7 @@ def test_submit():
     responses = list(map(Response.from_readable, url.get()))
     # we should have GET and then POST
     assert len(responses) == 2
-    data = json.load(responses[1])
+    data = json.loads(responses[1].read().decode('utf-8'))
     assert (set(data['form'].keys()) ==
             set(['comments', 'custname', 'topping']))
     assert data['form']['custname'] == custname

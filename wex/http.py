@@ -23,7 +23,7 @@ def request(url, method, session=None, **kw):
     decode_content = kw.get('decode_content', True)
 
     response = session.request(
-        kw.get('http_method', method.name),
+        method.name,
         url,
         params=method.args.get('params', None),
         data=method.args.get('data', None),
@@ -37,7 +37,7 @@ def request(url, method, session=None, **kw):
     redirects = session.resolve_redirects(response, response.request,
                                           stream=True, timeout=timeout)
     for redirect in redirects:
-        yield readable_from_response(redirect, url)
+        yield readable_from_response(redirect, url, decode_content)
 
 
 def readable_from_response(response, url, decode_content=True):

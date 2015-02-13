@@ -95,7 +95,8 @@ class URL(text_type):
             data = json.loads(fragment)
             if not isinstance(data, dict):
                 data = {}
-        except ValueError:
+        except ValueError as exc:
+            logger.error("%s. Unable to parse %r", exc, fragment)
             data = {}
 
         return data
@@ -118,10 +119,10 @@ class URL(text_type):
             return Method(self.parsed.scheme, method, {})
 
         try:
-            ((name, params),) = method.items()
+            ((name, args),) = method.items()
         except:
             raise ValueError("invalid method %r" % method)
-        return Method(self.parsed.scheme, name, params)
+        return Method(self.parsed.scheme, name, args)
 
     def get(self, **kw):
         """ Get `url` using the appropriate `Method`. """
