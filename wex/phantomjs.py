@@ -19,6 +19,7 @@ def request_using_phantomjs(url, method, session=None, **kw):
     phantomjs = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     fifo_path = mkfifo(phantomjs)
     settings = dict(default_settings)
+    settings.update(method.args.get('settings', {}))
     url_without_fragment = url.partition('#')[0]
     request = {
         'timeout': 60000,
