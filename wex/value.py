@@ -23,12 +23,13 @@ command line tools such as :command:`cut` and :command:`grep`.
 
 import sys
 from json import JSONEncoder
+from itertools import product
 from functools import partial
 from operator import itemgetter
 from six import PY2, text_type, reraise
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
-from .iterable import flatten, should_iterate
+from .iterable import flatten, do_not_iter
 
 
 TAB = '\t'
@@ -51,6 +52,12 @@ json_encode = JSONEncoder(
 ).encode
 
 
+def encode(obj):
+    try:
+        return json_encode(obj)
+    except TypeError:
+        return '#' + text_type(repr(obj)) + '!'
+
 
 class Value(tuple):
 
@@ -67,32 +74,28 @@ class Value(tuple):
 
     def text(self):
         """ Returns the text this value as a labelled JSON line. """
-        encoded = []
-        for field in self:
-            try:
-                encoded.append(json_encode(field))
-            except TypeError:
-                encoded.append('#' + text_type(repr(self.value)) + '!')
-        return TAB.join(encoded) + NL
+        iterables = [map(encode, flatten(label)) for label in self.labels]
+        iterables.append(map(encode, flatten_non_json(self.value)))
+        for fields in product(*iterables):
+            yield TAB.join(fields) + NL
 
     def label(self, *labels):
         """ Adds zero or more labels to this value. """
-        return self.__class__(tuple(map(text_type, labels)) + self)
+        return self.__class__(tuple(labels) + self)
 
 
-def should_iterate_unless_list_or_tuple(obj):
-    # when yielding values we *dont* want to iterate lists and tuples
-    return not isinstance(obj, (list, tuple)) and should_iterate(obj)
-
+# we don't want to flatten anything that is JSON encodable
+flatten_non_json = partial(flatten,
+                           unless_isinstance=do_not_iter + (list, tuple, dict))
 
 def yield_values(extract, *args, **kw):
     """ Yields ``Value`` objects extracted using ``extract``. """
     exc_info = ()
 
     try:
-        res = extract(*args, **kw)
-        for val in flatten(res, should_iterate_unless_list_or_tuple):
-            yield Value(val)
+        results = extract(*args, **kw)
+        for value in flatten_non_json(results):
+            yield Value(value)
     except Exception as exc:
         exc_info = sys.exc_info()
         yield Value(exc)

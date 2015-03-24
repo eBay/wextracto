@@ -4,5 +4,4 @@ py
 pytest
 pytest-cov
 ipdb
-singledispatch
 sphinx-rtd-theme==0.1.6

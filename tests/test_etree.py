@@ -17,8 +17,14 @@ X-wex-request-url: http://some.com/
     <h1>hi</h1>
     <div id="div1">
       <a href="/1"></a>
-      <a href="/2"></a>
+      <a href=" /2 "></a>
       <a></a>
+    </div>
+   <img src="http://other.com/src" />
+    <div id="links">
+      <a href="/1"></a>
+      <a href="http://base.com/2"></a>
+      <a href="http://other.com/"></a>
     </div>
     <div id="iter_text">This is <span>some </span>text.</div>
     <div id="nbsp">&nbsp;</div>
@@ -86,36 +92,54 @@ def test_xpath_re_match():
 
 def test_css():
     f = e.css('h1')
-    assert [elem.tag for elem in f(response(example))] == ['h1']
+    res = f(response(example))
+    assert isinstance(res, list)
+    assert [elem.tag for elem in res] == ['h1']
 
 
 def test_attrib():
     f = e.css('#div1 a') | e.attrib('href') | list
-    assert f(response(example)) == ['/1', '/2']
-
-
-def test_attrib_filter_false():
-    f = e.css('#div1 a') | e.attrib('nosuch', filter=False) | list
-    assert f(response(example)) == [None, None, None]
+    assert f(response(example)) == ['/1', ' /2 ', None]
 
 
 def test_attrib_default():
-    f = e.css('#div1 a') | e.attrib('nosuch', '', filter=False) | list
+    f = e.css('#div1 a') | e.attrib('nosuch', '') | list
     assert f(response(example)) == ['', '', '']
 
 
-def test_href():
-    f = e.css('#div1 a') | e.href | list
-    assert f(response(example)) == ['http://base.com/1', 'http://base.com/2']
+def test_img_src():
+    f = e.css('img') | e.src_url
+    res = f(response(example))
+    assert hasattr(res, '__iter__')
+    assert not isinstance(res, list)
+    assert list(res) == ['http://other.com/src']
 
 
-def test_href_single():
-    f = e.css('#div1 a') | item0 | e.href
+def test_href_url():
+    f = e.css('#links a') | e.href_url
+    res = f(response(example))
+    # we want the result to be an iterable, but not a list
+    assert hasattr(res, '__iter__')
+    assert not isinstance(res, list)
+    assert list(res) == ['http://base.com/1', 'http://base.com/2']
+
+
+def test_href_any_url():
+    f = e.css('#links a') | e.href_any_url
+    res = f(response(example))
+    # we want the result to be an iterable, but not a list
+    assert hasattr(res, '__iter__')
+    assert not isinstance(res, list)
+    assert list(res) == ['http://base.com/1', 'http://base.com/2', 'http://other.com/']
+
+
+def test_href_url_single():
+    f = e.css('#div1 a') | item0 | e.href_url
     assert f(response(example)) == 'http://base.com/1'
 
 
 def test_href_empty():
-    f = e.css('#nosuch') | e.href | list
+    f = e.css('#nosuch') | e.href_url | list
     assert f(response(example)) == []
 
 
@@ -173,16 +197,17 @@ def test_list_text():
     assert func(response(example)) == ['1', '', '2']
 
 
-def test_base_url_join_not_joinable():
+def test_join_to_base_url_not_joinable():
     obj = object()
     def not_joinable(src):
         return obj
-    f = e.base_url_join(not_joinable)
+    f = e.join_to_base_url(not_joinable)
     ret = f(e.parse(response(example)))
     assert ret is obj
 
+
 def test_href_when_url_contains_dodgy_characters():
-    f = e.css('a') | e.href | list
+    f = e.css('a') | e.href_url | list
     # This will fail if we don't quote/unquote the base_url
     assert f(response(example_with_dodgy_url)) == ['http://foo.com/1']
 

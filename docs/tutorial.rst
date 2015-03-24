@@ -197,7 +197,7 @@ instance is itself callable it it yields the results of each extractor in
 the collection together with its name.
 
 Extractors can be added to the collection by 
-`decorating <https://docs.python.org/2/whatsnew/2.4.html?highlight=decorator#pep-318-decorators-for-functions-and-methods>`_ them with the collections ``.attribute`` method.
+`decorating <https://docs.python.org/2/whatsnew/2.4.html?highlight=decorator#pep-318-decorators-for-functions-and-methods>`_ them with the collections :method:`.Attribute.add` method.
 
 So let's use the :class:`wex.extractor.Attributes` class.  
 

@@ -126,7 +126,8 @@ def write_values(context, readable, extract):
 
         with context(readable) as writer:
             for value in Response.values_from_readable(extract, readable):
-                writer.write(value.text())
+                for line in value.text():
+                    writer.write(line)
 
     except IOError as exc:
 

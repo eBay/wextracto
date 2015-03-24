@@ -1,10 +1,11 @@
 """ Helper functions for things that are iterable """
 
 import wex.py2compat ; assert wex.py2compat
-from functools import partial, singledispatch
+from functools import partial
 from itertools import islice as islice_
-from six import next
-from six.moves import map
+from lxml.etree import _Element
+from six import next, string_types
+from six.moves import map, filter
 from .composed import composable
 
 
@@ -16,57 +17,52 @@ class MultipleValuesError(ValueError):
     """ More than one value was found when one or none were expected. """
 
 
-
-@singledispatch
-def should_iterate(obj):
-    return True
-
-
-@should_iterate.register(str)
-def should_iterate_str(obj):
-    return False
-
-
-@should_iterate.register(dict)
-def should_iterate_dict(obj):
-    return False
+# we never want to iterate (or flatten) things of these types
+do_not_iter = string_types + (_Element,)
 
 
 @composable
-def flatten(obj, should_iterate=should_iterate):
+def flatten(item, unless_isinstance=do_not_iter):
     """ Yield items from all sub-iterables from obj. """
-    stack = [iter([obj])]
-    while stack:
-        try:
-            item = next(stack[-1])
-        except StopIteration:
-            stack.pop()
+    stack = []
+    while True:
+
+        if not hasattr(item, '__iter__') or isinstance(item, unless_isinstance):
+            yield item
         else:
-            # read this as ...
-            # if can iterate and should iterate
-            if hasattr(item, '__iter__') and should_iterate(item):
-                stack.append(iter(item))
-            else:
-                yield item
+            stack.append(iter(item))
+
+        while stack:
+            try:
+                item = next(stack[-1])
+                break
+            except StopIteration:
+                stack.pop()
+
+        if not stack:
+            break
 
 
-def map_when(cond, **kw):
-    flatten_func = kw.pop('flatten', flatten)
-    filter_func = kw.pop('filter', None)
-
-    def map_when_decorator(func):
-        @composable
-        #@wraps(func)
-        def map_when(arg0):
-            if hasattr(arg0, '__iter__') and cond(arg0):
-                iterable = flatten_func(arg0) if flatten_func else arg0
-                mapped = map(func, iterable)
-                if filter_func:
-                    return filter_func(mapped)
-                return mapped
+def map_if_iter(func):
+    @composable
+    #@wraps(func)
+    def wrapper(arg0):
+        if not hasattr(arg0, '__iter__') or isinstance(arg0, do_not_iter):
             return func(arg0)
-        return map_when
-    return map_when_decorator
+        else:
+            return map(func, flatten(arg0))
+    return wrapper
+
+
+def filter_if_iter(func):
+    @composable
+    def wrapper(arg0):
+        if not hasattr(arg0, '__iter__') or isinstance(arg0, do_not_iter):
+            return arg0
+        else:
+            return filter(func, arg0)
+    return wrapper
+
 
 
 @composable

@@ -20,6 +20,8 @@ def request(url, method, session=None, **kw):
         session = requests.Session()
         session.stream = True
 
+    decode_content = kw.get('decode_content', True)
+
     response = session.request(
         method.name,
         url,
@@ -30,12 +32,12 @@ def request(url, method, session=None, **kw):
         timeout=timeout,
         allow_redirects=False,
     )
-    yield readable_from_response(response, url, **kw)
+    yield readable_from_response(response, url, decode_content)
 
     redirects = session.resolve_redirects(response, response.request,
                                           stream=True, timeout=timeout)
     for redirect in redirects:
-        yield readable_from_response(redirect, url)
+        yield readable_from_response(redirect, url, decode_content)
 
 
 def readable_from_response(response, url, decode_content=True):

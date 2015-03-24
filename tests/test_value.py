@@ -1,3 +1,4 @@
+from six import next
 from wex.value import Value, yield_values
 
 whoops = ValueError("whoops")
@@ -16,11 +17,11 @@ def test_labels():
 
 
 def test_text():
-    assert Value(('a', 1)).text() == '"a"\t1\n'
+    assert next(Value(('a', 1)).text()) == '"a"\t1\n'
 
 
 def test_text_error():
-    text = Value(whoops).text()
+    text = next(Value(whoops).text())
     assert text.startswith('#') and text.endswith('!\n')
 
 

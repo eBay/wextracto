@@ -34,9 +34,9 @@ function handle_request() {
 
 
 function onConsoleMessage(msg) {
-    if (!msg.startsWith('Unsafe JavaScript attempt to access frame')) {
-        system.stderr.writeLine("[phantomjs.onConsoleMessage] " + msg);
-    }
+    //if (!msg.startsWith('Unsafe JavaScript attempt to access frame')) {
+    system.stderr.writeLine("[phantomjs.onConsoleMessage] " + msg);
+    //}
 }
 
 
@@ -86,6 +86,7 @@ function performRequest(request) {
             return;
         }
 
+
         wexout.writeLine("HTTP/1.1 " + response.status + " " +
                          response.statusText + "\r");
         for (var i=0; i<response.headers.length; i++) {
@@ -102,6 +103,14 @@ function performRequest(request) {
     page.open(
         request.url,
         function onPageOpenFinished(status) {
+
+            // Evaluate files containing JavaScript
+            var evaluate = request.evaluate || [] ;
+            for (var i=0; i < evaluate.length; i++) {
+                page.evaluateJavaScript(fs.read(evaluate[i]));
+
+            }
+
             wexout.write(page.content);
             wexout.flush();
             wexout.close();
