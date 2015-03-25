@@ -37,7 +37,7 @@ import errno
 from pkg_resources import EntryPoint, iter_entry_points
 from six.moves.urllib_parse import urlparse
 from six import itervalues
-from wex.extractor import Chain
+from wex.extractor import Chained
 
 
 GROUP='wex'
@@ -78,7 +78,7 @@ class ExtractorFromEntryPoints(object):
             if ep.name.startswith('.') and not domain_suffix(ep, hostname):
                 continue
             append_if_load_succeeded(extractors, ep)
-        return Chain(*extractors)
+        return Chained(*extractors)
 
     def iter_wex_entry_points(self):
 

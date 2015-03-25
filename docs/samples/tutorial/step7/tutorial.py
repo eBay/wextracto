@@ -1,8 +1,8 @@
-from wex.extractor import Attributes
+from wex.extractor import Named
 from wex.etree import xpath, text
 
 
-extract = Attributes(
+extract = Named(
     name = xpath('//h1') | text,
     country = xpath('//dd[@id="country"]') | text,
     region = xpath('//dd[@id="region"]') | text

@@ -1,4 +1,4 @@
-from wex.extractor import Attributes, label
+from wex.extractor import Named, label
 from wex.iterable import one
 from wex.etree import xpath, text
 
@@ -6,7 +6,7 @@ cheeses = xpath('//h1[@data-icin]')
 
 icin_attr = xpath('@data-icin') | one
 
-attrs = Attributes(
+attrs = Named(
     name = text,
     country = xpath('following::dd[@id="country"][1]') | text,
     region = xpath('following::dd[@id="region"][1]') | text

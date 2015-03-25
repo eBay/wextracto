@@ -19,8 +19,8 @@ from .value import yield_values
 OMITTED = object()
 
 
-class Chain(object):
-    """ A chain of extractors.
+class Chained(object):
+    """ An extractor that chains the output of other extractors.
 
     The output is the output from each extractor in sequence.
 
@@ -36,7 +36,7 @@ class Chain(object):
         def extract2(response):
             yield "two"
 
-        extract = Chain(extract1, extract2)
+        extract = Chained(extract1, extract2)
 
     Would produce the following extraction output:
 
@@ -135,18 +135,21 @@ def label(*label_literals_or_callables):
     return label_decorator
 
 
-class Attributes(object):
-    """ A extractor that is a collection of labelled extractors.
+class Named(object):
+    """ A extractor that is a collection of named extractors.
 
     Extractors can be added to the collection on construction
-    using keyword arguments for the labels.  For example, an 
+    using keyword arguments for the names or they can be added
+    using :meth:`.add`.
+
+    The names are labels in the output produced.  For example, an
     extractor function ``extract`` defined as follows:
 
     .. code-block:: python
 
-        extract = Attributes(
-            attr1 = (lambda response: "one"),
-            attr2 = (lambda response: "two"),
+        extract = Named(
+            name1 = (lambda response: "one"),
+            name2 = (lambda response: "two"),
         )
 
     Would produce the extraction output something like this:
@@ -154,10 +157,10 @@ class Attributes(object):
     .. code-block:: shell
 
         $ wex http://example.net/
-        "attr1"    "one"
-        "attr2"    "two"
+        "name1"    "one"
+        "name2"    "two"
 
-    The ordering of the attributes in the output is arbitrary.
+    The ordering of sub-extractor output is arbitrary.
     """
 
     def __init__(self, **kw):

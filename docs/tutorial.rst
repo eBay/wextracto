@@ -185,21 +185,22 @@ don't get extracted.
 To make that happen we'll need each attribute to be extracted in its own
 function.  In the next section we'll see how Wextracto helps you do that.
 
-.. _attributes:
+.. _named:
 
-Attributes
-~~~~~~~~~~
+Named
+~~~~~
 
-Wextracto provides an class specifically for extracting named attributes 
-and it is called :class:`wex.extractor.Attributes`.  This class lets you 
+Wextracto provides an class specifically for extracting named values
+and it is called :class:`wex.extractor.Named`.  This class lets you 
 create a collection of extractors each of which has a name.  The class 
 instance is itself callable it it yields the results of each extractor in 
 the collection together with its name.
 
 Extractors can be added to the collection by 
-`decorating <https://docs.python.org/2/whatsnew/2.4.html?highlight=decorator#pep-318-decorators-for-functions-and-methods>`_ them with the collections :method:`.Attribute.add` method.
+`decorating <https://docs.python.org/2/whatsnew/2.4.html?highlight=decorator#pep-318-decorators-for-functions-and-methods>`_ them with the collections 
+:method:`.Named.add` method.
 
-So let's use the :class:`wex.extractor.Attributes` class.  
+So let's use the :class:`wex.extractor.Named` class.  
 
 Copy the code from here:
 
@@ -220,18 +221,18 @@ Let's try running our extractor now and see what we get:
     "region"	"Somerset"
     "name"	"Cheddar"
 
-Now we've got something for all of the attributes we wanted and it tells
-which attribute extractor isn't working.
+Now we've got something for all the named values we wanted and in addition
+it tells which extractor isn't working.
 
 
-Composing Attributes
+Composing Extractors
 ~~~~~~~~~~~~~~~~~~~~
 
 If you need to write a lot of extractors then you may find that the using
-the decorator syntax for :class:`wex.extractor.Attributes` leads to a lot of
+the decorator syntax for :class:`wex.extractor.Named` leads to a lot of
 boilerplate code.  Fortunately there is an alternative.
 
-If you look at the examples in the :ref:`previous section <attributes>`, 
+If you look at the examples in the :ref:`previous section <named>`, 
 you will see that the extractors (apart from ``whoops``) all look 
 something like:
 
@@ -255,7 +256,7 @@ So we can define the extractor above as:
     xyz = xpath(...) | text
 
 We can pass these composed functions directly into the constructor for
-`wex.extractor.Attributes` and get something that looks like:
+`wex.extractor.Named` and get something that looks like:
 
 .. literalinclude:: samples/tutorial/step7/tutorial.py
 
