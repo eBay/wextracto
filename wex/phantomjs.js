@@ -91,7 +91,7 @@ function performRequest(request) {
                          response.statusText + "\r");
         for (var i=0; i<response.headers.length; i++) {
             var header = response.headers[i];
-            wexout.writeLine(header.name + ": " + header.value + "\r");
+            wexout.writeLine(header.name + ": " + header.value.replace(/\n/g, " ") + "\r");
         }
 
         wexout.writeLine("X-wex-request-url: " + request.wex_url + "\r");
