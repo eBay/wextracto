@@ -18,17 +18,15 @@ as an easy way to build new functions from existing ones:
 Wextracto uses the pipe operator, ``|``, as a shorthand for function composition.
 
 This shorthand can be a powerful technique for reducing boilerplate code when
-used in combination with :class:`.Attributes`:
+used in combination with :func:`.named` extractors:
 
 .. code-block:: python
 
     from wex.etree import css, text
-    from wex.extractor import Attributes
+    from wex.extractor import named
 
-    attrs = Attributes(
-        title = css('h1') | text
-        description = css('#description') | text
-    )
+    attrs = named(title = css('h1') | text
+                  description = css('#description') | text)
 
 """
 

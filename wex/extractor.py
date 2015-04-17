@@ -161,7 +161,7 @@ class Named(object):
 
         .. code-block:: python
 
-            attrs = Attributes()
+            attrs = Named()
 
             @attrs.add
             def attr1(response):
@@ -174,6 +174,7 @@ class Named(object):
 
 
 def named(**kw):
+    """ Returns a :class:`.Named` collection of extractors. """
     return Named(**kw)
 
 
