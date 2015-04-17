@@ -11,10 +11,7 @@ Wextracto is a `Python <https://www.python.org/>`_ package designed to be the
 core of a 
 `web crawling/scraping <http://en.wikipedia.org/wiki/Web_crawler>`_ system.
 
-Why Just the Core?
-~~~~~~~~~~~~~~~~~~
-
-To answer this question, let us look at the general architecture of a web 
+To understand how it fits in, let us look at the general architecture of a web 
 crawling/scraping based on Wextracto.
 
 .. _architecture:

@@ -29,7 +29,7 @@ from operator import itemgetter
 from six import PY2, text_type, reraise
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
-from .iterable import flatten, do_not_iter
+from .iterable import walk, flatten, do_not_iter
 
 
 TAB = '\t'
@@ -59,6 +59,11 @@ def encode(obj):
         return '#' + text_type(repr(obj)) + '!'
 
 
+def should_iter_unless_list(obj):
+    # a list is a reasonable value type so don't flatten it
+    return hasattr(obj, '__iter__') and not isinstance(obj, do_not_iter + (list,))
+
+
 class Value(tuple):
 
     exit_on_exc = False
@@ -75,7 +80,7 @@ class Value(tuple):
     def text(self):
         """ Returns the text this value as a labelled JSON line. """
         iterables = [map(encode, flatten(label)) for label in self.labels]
-        iterables.append(map(encode, flatten_non_json(self.value)))
+        iterables.append(map(encode, flatten(self.value, should_iter_unless_list)))
         for fields in product(*iterables):
             yield TAB.join(fields) + NL
 
@@ -84,18 +89,16 @@ class Value(tuple):
         return self.__class__(tuple(labels) + self)
 
 
-# we don't want to flatten anything that is JSON encodable
-flatten_non_json = partial(flatten,
-                           unless_isinstance=do_not_iter + (list, tuple, dict))
 
 def yield_values(extract, *args, **kw):
     """ Yields ``Value`` objects extracted using ``extract``. """
     exc_info = ()
 
     try:
-        results = extract(*args, **kw)
-        for value in flatten_non_json(results):
-            yield Value(value)
+        returned = extract(*args, **kw)
+        for walker in walk(returned, should_iter_unless_list):
+            for value in walker:
+                yield Value(value)
     except Exception as exc:
         exc_info = sys.exc_info()
         yield Value(exc)

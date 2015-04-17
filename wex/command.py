@@ -1,11 +1,11 @@
 """ The ``wex`` command extracts data from HTTP-like responses.
-These responses can come from files, directories or URLs specified on the 
-command line.  The command calls any :mod:`extractors <wex.extractor>` that have 
+These responses can come from files, directories or URLs specified on the
+command line.  The command calls any :mod:`extractors <wex.extractor>` that have
 been :mod:`registered <wex.entrypoints>` and writes any data extracted
 as :mod:`output <wex.output>`.
 
 The output and input can be saved, using the ``--save`` or ``--save-dir``
-command line arguments.  This is useful for 
+command line arguments.  This is useful for
 `regression testing <http://en.wikipedia.org/wiki/Regression_testing>`_.
 existing extractor functions.
 The test are run using :mod:`py.test <wex.pytestplugin>`.
@@ -18,13 +18,15 @@ For the complete list of command line arguments run:
 
 """
 from __future__ import absolute_import, unicode_literals, print_function
+import errno
 import argparse
 import logging.config
 from multiprocessing import cpu_count
 from pkg_resources import resource_filename
 from .readable import readables_from_paths
+from .response import Response
 from .processpool import do
-from .output import StdOut, TeeStdOut, write_values
+from .output import StdOut, TeeStdOut
 from .value import Value
 from .entrypoints import extractor_from_entry_points
 
@@ -105,12 +107,40 @@ on_exc.add_argument(
 
 class WriteExtractedValues(object):
 
-    def __init__(self, context, extract):
-        self.context = context
+    def __init__(self, stdout, extract):
+        self.log = logging.getLogger(__name__)
+        self.stdout = stdout
         self.extract = extract
 
     def __call__(self, readable):
-        return write_values(self.context, readable, self.extract)
+
+        retval = None
+        try:
+
+            with self.stdout(readable) as writer:
+                for value in Response.values_from_readable(self.extract, readable):
+                    for line in value.text():
+                        writer.write(line)
+
+        except IOError as exc:
+
+            # when we get an IOError it means we need to stop extracting
+            # so we *return* an exception so that the processpool.do can
+            # finish doing work.
+
+            if exc.errno == errno.EPIPE:
+                # unix convention is that exit code 0 is correct for a broken pipe
+                retval = SystemExit(0)
+            else:
+                self.log.exception('reading %r', readable)
+                retval = SystemExit(exc)
+
+        except Exception as exc:
+
+            self.log.exception('while extracting from %r', readable)
+            raise
+
+        return retval
 
 
 def main():

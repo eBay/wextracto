@@ -1,12 +1,10 @@
 """ Helper functions for things that are iterable """
 
 import wex.py2compat ; assert wex.py2compat
-from functools import partial
-from itertools import islice as islice_
-from lxml.etree import _Element
+from itertools import chain, islice as islice_
 from six import next, string_types
 from six.moves import map, filter
-from .composed import composable
+from .composed import composable, wraps
 
 
 class ZeroValuesError(ValueError):
@@ -17,52 +15,87 @@ class MultipleValuesError(ValueError):
     """ More than one value was found when one or none were expected. """
 
 
-# we never want to iterate (or flatten) things of these types
-do_not_iter = string_types + (_Element,)
+# these are the types we do not want to iterate.
+do_not_iter = tuple(string_types) + (dict, tuple)
+
+
+def _do_not_iter_append(typeobj):
+    # do_not_iter needs to be a tuple because we pass it to isinstance
+    # but we want to append things so this makes it a little bit mutable
+    global do_not_iter
+    do_not_iter = do_not_iter + (typeobj,)
+
+
+def should_iter(obj):
+    return hasattr(obj, '__iter__') and not isinstance(obj, do_not_iter)
+
+
+def should_iter_list(obj):
+    return hasattr(obj, '__iter__') and not isinstance(obj, do_not_iter + (list,))
+
+
+def walk(obj, should_iter=should_iter):
+
+    def _walk(iterator):
+        # pro-tip: step *into* this next line to debug generators
+        for obj in iterator:
+            if should_iter(obj):
+                stack.append(iter(obj))
+                return
+            yield obj
+        # iterator is now exhausted
+        stack.pop()
+
+    if not should_iter(obj):
+        yield iter([obj])
+        return
+
+    # our stack of iterators - this is how we walk
+    stack = [iter(obj)]
+
+    # keep yielding generators until the stack is empty
+    while stack:
+        gen = _walk(stack[-1])
+        yield gen
+        # we expect that the generator will have been
+        # exhausted by the time we get here, but we make
+        # sure it is because otherwise the walk won't stop!
+        for _ in gen:
+            pass
 
 
 @composable
-def flatten(item, unless_isinstance=do_not_iter):
-    """ Yield items from all sub-iterables from obj. """
-    stack = []
-    while True:
-
-        if not hasattr(item, '__iter__') or isinstance(item, unless_isinstance):
-            yield item
-        else:
-            stack.append(iter(item))
-
-        while stack:
-            try:
-                item = next(stack[-1])
-                break
-            except StopIteration:
-                stack.pop()
-
-        if not stack:
-            break
+def flatten(obj, should_iter=should_iter):
+    """ Yield objects from all sub-iterables from obj. """
+    return chain.from_iterable(walk(obj, should_iter))
 
 
-def map_if_iter(func):
+@composable
+def flatten_list(obj, should_iter=should_iter):
+    """ Yield objects from all sub-iterables from obj. """
+    return chain.from_iterable(walk(obj, should_iter_list))
+
+
+def map_if_iter(func, should_iter=should_iter):
     @composable
-    #@wraps(func)
-    def wrapper(arg0):
-        if not hasattr(arg0, '__iter__') or isinstance(arg0, do_not_iter):
-            return func(arg0)
+    @wraps(func)
+    def _map_if_iter(arg):
+        if should_iter(arg):
+            return map(func, arg)
         else:
-            return map(func, flatten(arg0))
-    return wrapper
+            return func(arg)
+    return _map_if_iter
+
 
 
 def filter_if_iter(func):
     @composable
-    def wrapper(arg0):
-        if not hasattr(arg0, '__iter__') or isinstance(arg0, do_not_iter):
-            return arg0
+    def wrapper(arg):
+        if not should_iter(arg):
+            return arg
         else:
-            return filter(func, arg0)
+            return filter(func, arg)
     return wrapper
-
 
 
 @composable
@@ -119,19 +152,6 @@ def one_or_none(iterable):
         return one(iterable)
     except ZeroValuesError:
         return None
-
-
-def map_partial(func, *args, **kwargs):
-    """ Returns a function that maps a function over a flattened iterable. """
-    partial_func = partial(func, *args, **kwargs)
-    @composable
-    def map_partial(iterable):
-        return map(partial_func, iterable)
-    return map_partial
-
-
-def map_flat(func, *args, **kwargs):
-    return flatten | map_partial(func, *args, **kwargs)
 
 
 def islice(*islice_args):

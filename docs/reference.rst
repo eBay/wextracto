@@ -35,6 +35,12 @@ Regular Expressions
 .. automodule:: wex.regex
     :members:
 
+String Functions
+~~~~~~~~~~~~~~~~
+
+.. automodule:: wex.string
+    :members:
+
 Iterables
 ~~~~~~~~~
 
@@ -50,6 +56,23 @@ URLs
 ~~~~
 
 .. automodule:: wex.url
+    :members:
+
+Other Methods
+~~~~~~~~~~~~~
+
+.. automodule:: wex.form
+    :members:
+
+.. automodule:: wex.phantomjs
+    :members:
+
+
+.. automodule:: wex.ftp
+    :members:
+
+
+.. automodule:: wex.http
     :members:
 
 Sitemaps
@@ -82,3 +105,4 @@ Regression Tests
 ~~~~~~~~~~~~~~~~
 
 .. automodule:: wex.pytestplugin
+

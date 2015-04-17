@@ -1,9 +1,9 @@
-from wex.extractor import Attributes
+from wex.extractor import named
 from wex.iterable import one
 from wex.etree import xpath, text
 
 
-extract = Attributes()
+extract = named()
 
 
 @extract.add

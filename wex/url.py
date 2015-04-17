@@ -21,7 +21,7 @@ from .composed import composable
 from .iterable import map_if_iter
 from .value import json_encode
 
-logger = logging.getLogger('__name__')
+logger = logging.getLogger(__name__)
 
 DEFAULT_METHOD = 'get'
 
@@ -137,7 +137,8 @@ class URL(text_type):
         return dirpath
 
     def dirnames(self):
-        hexdigest = md5(self.encode('utf-8')).hexdigest()
+        encoded = self.encode('utf-8')
+        hexdigest = md5(encoded).hexdigest()
         names = [self.parsed.scheme, self.parsed.netloc]
         names.extend(self.parsed.path.split('/'))
         if self.parsed.query:
@@ -156,37 +157,22 @@ public_suffix_list = PublicSuffixList()
 
 
 @composable
-def url_attr_1(obj):
+@map_if_iter
+def url(obj):
     return getattr(obj, 'url', obj)
 
-parse_url_1 = url_attr_1 | urlparse
-parse_url = map_if_iter(parse_url_1)
-
-url_query_1 = parse_url_1 | attrgetter('query')
-url_query = map_if_iter(url_query_1)
-
-url_path_1 = parse_url_1 | attrgetter('path')
-url_path = map_if_iter(url_path_1)
-
-url_hostname_1 = parse_url_1 | attrgetter('hostname')
-url_hostname = map_if_iter(url_hostname_1)
-
-url_query_dict_1 = url_query_1 | parse_qs
-url_query_dict = map_if_iter(url_query_dict_1)
-
-url_query_list_1 = url_query_1 | parse_qsl
-url_query_list = map_if_iter(url_query_list_1)
-
-
-def url_query_param_1(name, default=[]):
-    return url_query_dict_1 | methodcaller('get', name, default)
-
+parse_url = url | map_if_iter(urlparse)
+url_query = parse_url | map_if_iter(attrgetter('query'))
+url_path = parse_url | map_if_iter(attrgetter('path'))
+url_hostname = parse_url | map_if_iter(attrgetter('hostname'))
+url_query_dict = url_query | map_if_iter(parse_qs)
+url_query_list = url_query | map_if_iter(parse_qsl)
 
 def url_query_param(name, default=[]):
-    return map_if_iter(url_query_param_1(name, default))
+    return url_query_dict | map_if_iter(methodcaller('get', name, default))
 
 
-def filter_url_query_1(*names, **kw):
+def filter_url_query(*names, **kw):
 
     names = set(names)
     exclude = kw.pop('exclude', False)
@@ -203,8 +189,9 @@ def filter_url_query_1(*names, **kw):
         pred = included
 
     @composable
+    @map_if_iter
     def url_query_filter(obj):
-        parsed = parse_url_1(obj)
+        parsed = parse_url(obj)
         qsl = list(filter(pred, parse_qsl(parsed.query)))
         filtered_query = urlencode(qsl)
         return urlunparse(parsed._replace(query=filtered_query))
@@ -212,14 +199,10 @@ def filter_url_query_1(*names, **kw):
     return url_query_filter
 
 
-def filter_url_query(*names, **kw):
-    return map_if_iter(filter_url_query_1(*names, **kw))
-
-
-strip_url_query = map_if_iter(filter_url_query_1())
+strip_url_query = filter_url_query()
 
 
 @composable
 @map_if_iter
 def public_suffix(src):
-    return public_suffix_list.get_public_suffix(url_hostname_1(src) or src)
+    return public_suffix_list.get_public_suffix(url_hostname(src) or src)

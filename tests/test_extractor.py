@@ -1,13 +1,6 @@
 from pkg_resources import working_set, resource_stream, resource_filename
-from wex.extractor import label, Chain, Attributes
+from wex.extractor import label, labelled, chained, named
 from wex.response import Response
-
-
-
-
-def setup_module():
-    entry = resource_filename(__name__, 'fixtures/TestMe.egg')
-    working_set.add_entry(entry)
 
 
 ex1 = """HTTP/1.1 200 OK\r
@@ -32,7 +25,14 @@ X-wex-url: http://doesnotmatch.org/headers\r
 class MyError(Exception):
     pass
 
-error = MyError()
+
+my_error = MyError()
+
+
+def setup_module():
+    # This egg has [wex] entry points we use for testing
+    entry = resource_filename(__name__, 'fixtures/TestMe.egg')
+    working_set.add_entry(entry)
 
 
 def extract_arg0(arg0):
@@ -44,20 +44,22 @@ def extract_first_line(response):
 
 
 def extract_with_error(arg0):
-    raise error
+    raise my_error
 
 
-def test_chain_error():
-    extract = Chain(extract_with_error)
+def test_chained_extractor_raises():
+    extract = chained(extract_with_error)
     items = list(extract('foo'))
-    assert items == [(error,)]
+    assert items == [(my_error,)]
 
 
-def test_chain_seek():
+def test_chained_does_seek_response():
     readable = resource_stream(__name__, 'fixtures/robots_txt')
     response = Response.from_readable(readable)
-    extract = Chain(extract_first_line, extract_first_line)
+    # use the same extractor twice
+    extract = chained(extract_first_line, extract_first_line)
     values = list(extract(response))
+    # and we get the same first line because chained re-seeks to 0
     assert values == [(b'# /robots.txt\n',), (b'# /robots.txt\n',)]
 
 
@@ -75,94 +77,94 @@ def test_label_missing_label():
     assert list(extract("foo")) == []
 
 
-def test_label_error():
+def test_labelled_error():
     labeller = (lambda x: "bar")
-    extract = label(labeller)(extract_with_error)
+    extract = labelled(labeller, extract_with_error)
     values = list(extract('foo'))
-    assert values == [('bar', error,)]
+    assert values == [('bar', my_error,)]
 
 
-def test_label_chain():
+def test_labelled_chained():
     # bug test
     labeller  = (lambda x: x)
-    extract = label(labeller)(Chain(extract_arg0))
+    extract = labelled(labeller, chained(extract_arg0))
     assert list(extract("foo")) == [("foo", "foo")]
 
 
-def test_label_attributes():
+def test_label_named():
     # bug test
     labeller  = (lambda x: x)
-    attr = Attributes(a1=(lambda x: 'bar'))
-    extract = label(labeller)(attr)
+    n = named(a1=(lambda x: 'bar'))
+    extract = label(labeller)(n)
     assert list(extract("foo")) == [("foo", "a1", "bar")]
 
 
-def test_attributes():
-    attr = Attributes()
-    attr.add(lambda v: v, 'foo')
-    actual = list(attr('bar'))
+def test_named():
+    n= named()
+    n.add(lambda v: v, 'foo')
+    actual = list(n('bar'))
     expected = [('foo', 'bar')]
     assert actual == expected
 
 
-def test_attributes_keywords():
-    attr = Attributes(foo=lambda v: v)
-    actual = list(attr('bar'))
+def test_nameds_keywords():
+    n = named(foo=lambda v: v)
+    actual = list(n('bar'))
     expected = [('foo', 'bar')]
     assert actual == expected
 
 
-def test_len():
-    attr = Attributes()
-    attr.add('foo', lambda v: v)
-    assert len(attr) == 1
+def test_named_len():
+    n = named()
+    n.add('foo', lambda v: v)
+    assert len(n) == 1
 
 
-def test_attribute_add_as_decorator():
-    attr = Attributes()
-    @attr.add
+def test_named_add_as_decorator():
+    n = named()
+    @n.add
     def foo(value):
         return value
-    actual = list(attr('bar'))
+    actual = list(n('bar'))
     expected = [('foo', 'bar')]
     assert actual, expected
     assert foo('bar') == 'bar'
 
 
-def test_attribute_generator():
-    attr = Attributes()
+def test_named_extractor_is_generator():
+    n = named()
     def foo(value):
         for character in value:
             yield character
-    attr.add(foo)
-    actual = list(attr('bar'))
+    n.add(foo)
+    actual = list(n('bar'))
     expected = [('foo', 'b'), ('foo', 'a'), ('foo', 'r'),]
     assert actual == expected
     assert list(foo('bar')) == list('bar')
 
 
-def test_attribute_exception():
-    attr = Attributes()
+def test_named_extractor_raises():
+    n = named()
     def foo(value):
         raise ValueError(value)
-    attr.add(foo)
-    actual = list(attr('bar'))
+    n.add(foo)
+    actual = list(n('bar'))
     assert len(actual) == 1
     actual_name, actual_value = actual[0]
     assert actual_name == 'foo'
     assert isinstance(actual_value, Exception)
 
 
-def test_attribute_exception_in_generator():
-    attr = Attributes()
+def test_named_exception_in_generator():
+    n = named()
     def foo(value):
         for i, character in enumerate(value):
             if i > 0:
                 raise ValueError(character)
             yield character
         raise ValueError(value)
-    attr.add(foo)
-    actual = list(attr('bar'))
+    n.add(foo)
+    actual = list(n('bar'))
     assert len(actual) == 2
     # The first value came out ok...
     assert actual[0] == ('foo', 'b')

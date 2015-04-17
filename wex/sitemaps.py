@@ -9,7 +9,7 @@ import wex.py2compat ; assert wex.py2compat
 from lxml.etree import iterparse
 from codecs import getreader
 from six.moves.urllib_parse import urljoin
-from wex.extractor import Chain
+from wex.extractor import Chained
 from wex.http import decode
 from wex.url import URL
 
@@ -76,5 +76,5 @@ def urls_from_urlset_or_sitemapindex(response):
 
 #: Extractor that combines :func:`.urls_from_robots_txt` and
 #: :func:`.urls_from_urlset_or_sitemapindex`.
-urls_from_sitemaps = Chain(urls_from_robots_txt,
-                           urls_from_urlset_or_sitemapindex)
+urls_from_sitemaps = Chained(urls_from_robots_txt,
+                             urls_from_urlset_or_sitemapindex)
