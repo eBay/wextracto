@@ -5,9 +5,12 @@ import errno
 import sys
 import subprocess
 from itertools import tee
+from six import BytesIO
 from six.moves import zip
 from pkg_resources import working_set, resource_filename
 import pytest
+from wex.readable import EXT_WEXIN
+from wex.output import EXT_WEXOUT, TeeStdOut
 from wex.url import URL
 from wex import command
 
@@ -127,3 +130,30 @@ def test_main_output_return_dict(monkeypatch, tmpdir):
         fp.write("[wex]\nreturn_dict = testme:return_dict")
     # The tuple is encoded as a JSON array
     assert run_main(monkeypatch, args) == '{"a":1}\n'
+
+
+wexin = b"""HTTP/1.1 200 OK
+
+Hello
+"""
+
+
+def test_write_extracted_values_tee_stdout(tmpdir):
+    readable = BytesIO(wexin)
+    readable.name = tmpdir.join('0' + EXT_WEXIN).strpath
+    def extract(src):
+        yield 1
+    writer = command.WriteExtractedValues(TeeStdOut, extract)
+    ret = writer(readable)
+    assert ret is None
+    with tmpdir.join('0' + EXT_WEXOUT).open() as fp:
+        assert fp.read() == '1\n'
+
+
+def test_write_extracted_values_tee_stdout_readable_has_no_name():
+    readable = BytesIO(wexin)
+    def extract(src):
+        yield 1
+    writer = command.WriteExtractedValues(TeeStdOut, extract)
+    ret = writer(readable)
+    assert ret is None

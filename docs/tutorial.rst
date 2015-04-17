@@ -190,8 +190,8 @@ function.  In the next section we'll see how Wextracto helps you do that.
 Named
 ~~~~~
 
-Wextracto provides an class specifically for extracting named values
-and it is called :class:`wex.extractor.Named`.  This class lets you 
+Wextracto provides a function specifically for extracting named values
+and it is called :func:`wex.extractor.named`.  This lets you 
 create a collection of extractors each of which has a name.  The class 
 instance is itself callable it it yields the results of each extractor in 
 the collection together with its name.
@@ -199,8 +199,6 @@ the collection together with its name.
 Extractors can be added to the collection by 
 `decorating <https://docs.python.org/2/whatsnew/2.4.html?highlight=decorator#pep-318-decorators-for-functions-and-methods>`_ them with the collections 
 :method:`.Named.add` method.
-
-So let's use the :class:`wex.extractor.Named` class.  
 
 Copy the code from here:
 

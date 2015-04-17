@@ -33,6 +33,8 @@ used in combination with :class:`.Attributes`:
 """
 
 from itertools import chain
+from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES, partial as functools_partial
+from six.moves import map as six_map
 
 
 def compose(*functions):
@@ -82,16 +84,18 @@ class Composable(object):
         return (cls.__call__,)
 
     def __or__(self, rhs):
+        assert hasattr(rhs, '__call__')
         return compose(self, rhs)
 
     def __ror__(self, lhs):
+        assert hasattr(lhs, '__call__')
         return compose(lhs, self)
 
     def __call__(self, arg):
         raise NotImplementedError
 
 
-def flatten(functions):
+def flatten_composed_callables(functions):
     iterable = (getattr(f, 'functions', (f,)) for f in functions)
     return tuple(chain.from_iterable(iterable))
 
@@ -117,7 +121,7 @@ class ComposedCallable(Composable):
     """
 
     def __init__(self, *functions):
-        self.functions = flatten(functions)
+        self.functions = flatten_composed_callables(functions)
 
     def __call__(self, arg, **kw):
         res = arg
@@ -134,3 +138,33 @@ class ComposedCallable(Composable):
                               self.functions)
 
 
+def wraps(wrapped,
+          assigned = WRAPPER_ASSIGNMENTS,
+          updated = WRAPPER_UPDATES):
+    defaults = {
+        '__annotations__': {}
+    }
+    def decorator(wrapper):
+        for attr in assigned:
+            class_ = getattr(wrapped, '__class__', None)
+            try:
+                value = getattr(wrapped, attr)
+            except AttributeError:
+                try:
+                    value = getattr(class_, attr)
+                except AttributeError:
+                    value = defaults[attr]
+            setattr(wrapper, attr, value)
+        for attr in updated:
+            value = getattr(wrapped, attr, {})
+            getattr(wrapper, attr).update(value)
+        return wrapper
+    return decorator
+
+
+def partial(func, *args, **kwargs):
+    return composable(functools_partial(func, *args, **kwargs))
+
+
+def map(func):
+    return partial(six_map, func)

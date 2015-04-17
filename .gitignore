@@ -46,4 +46,8 @@ docs/_build/
 # vi
 *.swp
 
+# pydev
+.pydevproject
+.project
+
 responses

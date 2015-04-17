@@ -2,6 +2,7 @@ from __future__ import unicode_literals, print_function
 from six import BytesIO
 from lxml import html
 from operator import itemgetter
+from wex.cache import Cache
 from wex.response import Response, parse_headers
 from wex import etree as e
 from wex.iterable import flatten
@@ -53,12 +54,12 @@ X-wex-request-url: http://foo.com/bar[]/baz/
 item0 = itemgetter(0)
 
 
-def response(data):
+def create_response(data):
     return Response.from_readable(BytesIO(data))
 
 
 def test_parse():
-    etree = e.parse(response(example))
+    etree = e.parse(create_response(example))
     assert etree.xpath('//h1/text()') == ['hi']
 
 
@@ -75,41 +76,50 @@ def test_parse_ioerror():
 
 
 def test_xpath():
-    f = e.xpath('//h1/text()')
-    assert f(response(example)) == ['hi']
+    f = e.xpath('//h1/text()') | list
+    assert f(create_response(example)) == ['hi']
 
 
 def test_xpath_re():
     f = e.xpath('//*[re:test(text(), "SOME", "i")]/text()') | list
-    assert f(response(example)) == ['some ']
+    assert f(create_response(example)) == ['some ']
 
 
 def test_xpath_re_match():
     f = (e.xpath('re:match(//body, "\s+is\s+(some)\s+text", "gi")/text()') |
          list)
-    assert f(response(example)) == ['some']
+    assert f(create_response(example)) == ['some']
 
 
 def test_css():
     f = e.css('h1')
-    res = f(response(example))
+    response = create_response(example)
+    res = f(response)
     assert isinstance(res, list)
     assert [elem.tag for elem in res] == ['h1']
 
 
+def test_css_called_twice():
+    f = e.css('h1')
+    response = create_response(example)
+    with Cache():
+        assert f(response)== f(response)
+
+
 def test_attrib():
     f = e.css('#div1 a') | e.attrib('href') | list
-    assert f(response(example)) == ['/1', ' /2 ', None]
+    r = create_response(example)
+    assert f(r) == ['/1', ' /2 ', None]
 
 
 def test_attrib_default():
     f = e.css('#div1 a') | e.attrib('nosuch', '') | list
-    assert f(response(example)) == ['', '', '']
+    assert f(create_response(example)) == ['', '', '']
 
 
 def test_img_src():
     f = e.css('img') | e.src_url
-    res = f(response(example))
+    res = f(create_response(example))
     assert hasattr(res, '__iter__')
     assert not isinstance(res, list)
     assert list(res) == ['http://other.com/src']
@@ -117,7 +127,7 @@ def test_img_src():
 
 def test_href_url():
     f = e.css('#links a') | e.href_url
-    res = f(response(example))
+    res = f(create_response(example))
     # we want the result to be an iterable, but not a list
     assert hasattr(res, '__iter__')
     assert not isinstance(res, list)
@@ -126,7 +136,7 @@ def test_href_url():
 
 def test_href_any_url():
     f = e.css('#links a') | e.href_any_url
-    res = f(response(example))
+    res = f(create_response(example))
     # we want the result to be an iterable, but not a list
     assert hasattr(res, '__iter__')
     assert not isinstance(res, list)
@@ -135,12 +145,12 @@ def test_href_any_url():
 
 def test_href_url_single():
     f = e.css('#div1 a') | item0 | e.href_url
-    assert f(response(example)) == 'http://base.com/1'
+    assert f(create_response(example)) == 'http://base.com/1'
 
 
 def test_href_empty():
     f = e.css('#nosuch') | e.href_url | list
-    assert f(response(example)) == []
+    assert f(create_response(example)) == []
 
 
 def test_normalize_space():
@@ -164,22 +174,22 @@ def test_normalize_space_nested():
 
 def test_text():
     f = e.css('h1') | e.text | list
-    assert f(response(example)) == ['hi']
+    assert f(create_response(example)) == ['hi']
 
 
 def test_text_from_xpath():
     f = e.xpath('//h1/text()') | e.text | list
-    assert f(response(example)) == ['hi']
+    assert f(create_response(example)) == ['hi']
 
 
 def test_nbsp():
     func = e.css('#nbsp') | e.itertext | flatten | list
-    assert func(response(example)) == [u'\xa0']
+    assert func(create_response(example)) == [u'\xa0']
 
 
 def test_text_br():
     func = e.css('#br') | e.text | list
-    assert func(response(example)) == ['oh my']
+    assert func(create_response(example)) == ['oh my']
 
 
 def test_text_html_comment():
@@ -189,12 +199,12 @@ def test_text_html_comment():
 
 def test_join_text():
     func = e.css('ul li') | e.join_text
-    assert func(response(example)) == '1 2'
+    assert func(create_response(example)) == '1 2'
 
 
 def test_list_text():
     func = e.css('ul li') | e.text | list
-    assert func(response(example)) == ['1', '', '2']
+    assert func(create_response(example)) == ['1', '', '2']
 
 
 def test_join_to_base_url_not_joinable():
@@ -202,23 +212,23 @@ def test_join_to_base_url_not_joinable():
     def not_joinable(src):
         return obj
     f = e.join_to_base_url(not_joinable)
-    ret = f(e.parse(response(example)))
+    ret = f(e.parse(create_response(example)))
     assert ret is obj
 
 
 def test_href_when_url_contains_dodgy_characters():
     f = e.css('a') | e.href_url | list
     # This will fail if we don't quote/unquote the base_url
-    assert f(response(example_with_dodgy_url)) == ['http://foo.com/1']
+    assert f(create_response(example_with_dodgy_url)) == ['http://foo.com/1']
 
 
 def test_itertext():
     f = e.css('.thing') | e.itertext | flatten | list
     expected = ['First ', 'one thing', 'then ', 'another thing', '.']
-    assert f(response(example)) == expected
+    assert f(create_response(example)) == expected
 
 
 def test_itertext_elem():
     f = e.css('.thing') | (lambda l: l[0]) | e.itertext | list
     expected = ['First ', 'one thing']
-    assert f(response(example)) == expected
+    assert f(create_response(example)) == expected

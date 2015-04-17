@@ -14,18 +14,21 @@ import codecs
 
 from six.moves import reduce
 
-from lxml.etree import XPath, _ElementTree, Element
+from lxml.etree import XPath, _ElementTree, _Element, Element
 from lxml.cssselect import CSSSelector
 from lxml.html import XHTML_NAMESPACE, HTMLParser
 
-from .composed import composable
+from .composed import composable, wraps
 from .cache import cached
-from .iterable import flatten, map_if_iter, filter_if_iter
+from .iterable import _do_not_iter_append, map_if_iter, filter_if_iter, flatten
 from .ncr import replace_invalid_ncr
 
 SKIP = object()
 skip = partial(is_, SKIP)
 
+
+# don't want to flatten elements
+_do_not_iter_append(_Element)
 
 UNPARSEABLE = Element('unparseable')
 
@@ -36,19 +39,6 @@ space_join = composable(' '.join)
 
 
 default_namespaces = {'re': 'http://exslt.org/regular-expressions'}
-
-
-class WrapsShim(object):
-
-    def __init__(self, wrapped):
-        self.wrapped = wrapped
-        self.assignments = {
-            '__module__': __name__,
-            '__name__': repr(wrapped),
-        }
-
-    def __getattr__(self, attr):
-        return getattr(self.wrapped, attr, self.assignments[attr])
 
 
 def create_html_parser(headers):
@@ -106,6 +96,15 @@ def get_base_url(root):
     return reduce(urljoin, base_href(root)[:1], base_url)
 
 
+def map_if_list(func):
+    @wraps(func)
+    def _map_if_list(arg):
+        if isinstance(arg, list):
+            return list(flatten(map(func, arg)))
+        return func(arg)
+    return _map_if_list
+
+
 def css(expression):
     """ Returns a :func:`composable <wex.composed.composable>` callable that
         will select elements defined by a 
@@ -117,7 +116,7 @@ def css(expression):
         The callable returned accepts a :class:`wex.response.Response`, a
         list of elements or an individual element as an argument.
     """
-    return parse | map_if_iter(CSSSelector(expression))
+    return parse | map_if_list(CSSSelector(expression))
 
 
 def xpath(expression, namespaces=default_namespaces):
@@ -140,13 +139,12 @@ def xpath(expression, namespaces=default_namespaces):
             >>> selector = xpath('//h1')
 
     """
-    return parse | map_if_iter(XPath(expression, namespaces=namespaces))
+    return parse | map_if_list(XPath(expression, namespaces=namespaces))
 
 
 def attrib(name, default=None):
     getter = methodcaller('get', name, default)
-    mapper = map_if_iter(getter)
-    return mapper
+    return map_if_list(getter)
 
 
 def join_to_base_url(url_getter, same_domain=True):

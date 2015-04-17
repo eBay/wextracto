@@ -1,5 +1,5 @@
 import threading
-from functools import wraps
+from .composed import wraps
 
 
 class Cache(dict):

@@ -36,12 +36,9 @@ With output like this we can easily sort and group it.
 
 from __future__ import absolute_import, unicode_literals, print_function
 import os
-import errno
 import sys
-import logging; log = logging.getLogger(__name__)
 import codecs
 from multiprocessing import Lock
-from .response import Response
 from .readable import EXT_WEXIN
 
 EXT_WEXOUT = '.wexout'
@@ -117,30 +114,3 @@ class TeeStdOut(StdOut):
         super(TeeStdOut, self).flush()
         if self.tee:
             self.tee.flush()
-
-
-def write_values(context, readable, extract):
-
-    ret = None
-    try:
-
-        with context(readable) as writer:
-            for value in Response.values_from_readable(extract, readable):
-                for line in value.text():
-                    writer.write(line)
-
-    except IOError as exc:
-
-        if exc.errno == errno.EPIPE:
-            ret = SystemExit(0)
-        else:
-            log.exception('reading %r', readable)
-            ret = SystemExit(exc)
-
-    except Exception as exc:
-
-        log.exception('while extracting from %r', readable)
-        ret = exc
-        raise
-
-    return ret

@@ -7,6 +7,7 @@ from six.moves.http_client import BadStatusLine
 from .py2compat import parse_headers
 from .cache import Cache
 from .value import yield_values
+from .iterable import _do_not_iter_append
 
 
 DEFAULT_READ_SIZE = 2**16  # 64K
@@ -107,3 +108,10 @@ class Response(addinfourl):
             content_file.seek(0)
 
         return content_file
+
+
+# Response supports __iter__ because that is normal for file-like objects
+# but by default we don't want respones to be iterated when flattening or
+# when composable helpers are trying to work out whether to map or not.
+_do_not_iter_append(Response)
+

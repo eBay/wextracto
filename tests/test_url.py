@@ -1,7 +1,10 @@
+from __future__ import print_function
 import os
 import pytest
+from six import BytesIO
 from wex.url import URL, DEFAULT_METHOD, eexist_is_ok
-# This is the normal idiom for access to the composable functions
+from wex.response import Response
+# we are going to use lots of functions from wex.url so let's save some typing
 from wex import url as u
 
 
@@ -93,6 +96,20 @@ strip_url_query = u.strip_url_query | identity
 
 def test_parse_url():
     assert parse_url(url1) == url1_parsed
+
+
+def test_parse_url_response():
+    response = Response.from_readable(
+        BytesIO(
+            b"HTTP/1.1 200 OK\r\n"
+            b"X-wex-request-url: http://www.foo.com/a/b/c\r\n"
+            b"Content-type: text/html\r\n"
+            b"\r\n"
+            b"<html><h1>hello</h1></html>"
+        )
+    )
+    assert parse_url(response).path == '/a/b/c'
+
 
 
 def test_parse_obj():
