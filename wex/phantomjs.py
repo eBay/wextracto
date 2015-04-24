@@ -8,7 +8,7 @@ from pkg_resources import resource_filename
 
 
 script = os.path.abspath(resource_filename(__name__, 'js/phantom.js'))
-cmd = ['phantomjs', script]
+cmd = ['phantomjs', '--ssl-protocol=any', script]
 # see http://phantomjs.org/api/webpage/property/settings.html
 default_settings = {'loadImages': False}
 
@@ -35,7 +35,12 @@ def request_using_phantomjs(url, method, session=None, **kw):
         else:
             requires.append(require)
 
-    request = {"url": url, "requires": requires, "settings": settings}
+    request = {
+        "url": url,
+        "requires": requires,
+        "settings": settings,
+        "loglevel": logging.getLogger(__name__).getEffectiveLevel(),
+    }
     dumped = json.dumps(request)
     if not isinstance(dumped, binary_type):
         dumped = dumped.encode('utf-8')

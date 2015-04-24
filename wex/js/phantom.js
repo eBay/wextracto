@@ -11,6 +11,7 @@ var request = JSON.parse(system.stdin.read());
 var webpage = require('webpage');
 var page = webpage.create();
 var navigation = Array();
+var loglevel = request.loglevel || 30 ;
 
 
 // update webpage settings
@@ -27,23 +28,29 @@ function log(level, msg, prefix) {
     system.stderr.writeLine(level + prefix + msg);
 }
 
-function logInfo(msg, prefix) {
-    log('INFO', msg, prefix);
+function logDebug(msg, prefix) {
+    if (loglevel <= 10) {
+        log('DEBUG', msg, prefix);
+    }
 }
 
-function logDebug(msg, prefix) {
-    log('DEBUG', msg, prefix);
+function logInfo(msg, prefix) {
+    if (loglevel <= 20) {
+        log('INFO', msg, prefix);
+    }
 }
 
 function logError(msg, prefix) {
-    log('ERROR', msg, prefix);
+    if (loglevel <= 40) {
+        log('ERROR', msg, prefix);
+    }
 }
 
 
 // webpage callbacks
 
 page.onConsoleMessage = function(msg, prefix) {
-    logInfo(msg, " [phantomjs.onConsoleMessage] ");
+    logDebug(msg, " [phantomjs.onConsoleMessage] ");
 };
 
 page.onError = function(msg, trace) {
