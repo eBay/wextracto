@@ -6,7 +6,7 @@ from six.moves import map
 
 def test_phantomjs():
     url = URL('http://httpbin.org/html')
-    method = {"phantomjs":{"evaluate":[["wex","js/bcr.js"]]}}
+    method = {"phantomjs":{"requires":[["wex","js/bcr.js"]]}}
     url = url.update_fragment_dict(method=method)
     elements = []
     for response in map(Response.from_readable, url.get()):

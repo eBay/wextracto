@@ -1,51 +1,46 @@
 import os
-import subprocess
-import tempfile
+import logging
 import json
+from six import binary_type
+from threading import Timer
+from subprocess import Popen, PIPE
 from pkg_resources import resource_filename
 
 
-default_settings = {
-    'loadImages': False,
-    'resourceTimeout': 60000,
-}
-
-
-phantomjs_js = os.path.abspath(resource_filename(__name__, 'phantomjs.js'))
-cmd = ['phantomjs', phantomjs_js]
+script = os.path.abspath(resource_filename(__name__, 'js/phantom.js'))
+cmd = ['phantomjs', script]
+# see http://phantomjs.org/api/webpage/property/settings.html
+default_settings = {'loadImages': False}
 
 
 def request_using_phantomjs(url, method, session=None, **kw):
-    phantomjs = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    fifo_path = mkfifo(phantomjs)
+
+    phantomjs = Popen(cmd, stdin=PIPE, stdout=PIPE)
+
+    def terminate_phantomjs():
+        if phantomjs.poll() is not None:
+            return
+        phantomjs.terminate()
+        logging.getLogger(__name__).warning("phantomjs terminated")
+
+    timeout_timer = Timer(10.0, terminate_phantomjs)
+
     settings = dict(default_settings)
     settings.update(method.args.get('settings', {}))
-    url_without_fragment = url.partition('#')[0]
-    request = {
-        'timeout': 60000,
-        'url': url_without_fragment,
-        'wex_url': url,
-        'wexout': fifo_path,
-        'settings': settings,
-        'evaluate': [],
-    }
+    requires = []
+    for require in method.args.get('requires', []):
+        if isinstance(require, (tuple, list)):
+            stem, _ = os.path.splitext(resource_filename(*require))
+            requires.append(stem)
+        else:
+            requires.append(require)
 
-    for evaluate in method.args.get('evaluate', []):
-        filename = resource_filename(*evaluate)
-        request['evaluate'].append(filename)
-
-    request_line = json.dumps(request) + '\n'
-    phantomjs.stdin.write(request_line.encode('utf-8'))
-    phantomjs.stdin.flush()
-    try:
-        yield open(fifo_path, 'rb')
-    finally:
-        os.unlink(fifo_path)
-    assert phantomjs.wait() == 0
-
-
-def mkfifo(phantomjs):
-    basename = 'wex.phantomjs.{}.{}.fifo'.format(os.getpid(), phantomjs.pid)
-    fifo_path = os.path.join(tempfile.gettempdir(), basename)
-    os.mkfifo(fifo_path)
-    return fifo_path
+    request = {"url": url, "requires": requires, "settings": settings}
+    dumped = json.dumps(request)
+    if not isinstance(dumped, binary_type):
+        dumped = dumped.encode('utf-8')
+    phantomjs.stdin.write(dumped)
+    phantomjs.stdin.close()
+    timeout_timer.start()
+    yield phantomjs.stdout
+    timeout_timer.cancel()
