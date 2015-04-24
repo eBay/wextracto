@@ -6,6 +6,7 @@ from threading import Timer
 from subprocess import Popen, PIPE
 from pkg_resources import resource_filename
 
+TIMEOUT = 60.0
 
 script = os.path.abspath(resource_filename(__name__, 'js/phantom.js'))
 cmd = ['phantomjs', '--ssl-protocol=any', script]
@@ -23,7 +24,7 @@ def request_using_phantomjs(url, method, session=None, **kw):
         phantomjs.terminate()
         logging.getLogger(__name__).warning("phantomjs terminated")
 
-    timeout_timer = Timer(10.0, terminate_phantomjs)
+    timeout_timer = Timer(TIMEOUT, terminate_phantomjs)
 
     settings = dict(default_settings)
     settings.update(method.args.get('settings', {}))
