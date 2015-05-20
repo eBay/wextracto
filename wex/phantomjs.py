@@ -25,6 +25,8 @@ def request_using_phantomjs(url, method, session=None, **kw):
         logging.getLogger(__name__).warning("phantomjs terminated")
 
     timeout_timer = Timer(TIMEOUT, terminate_phantomjs)
+    # we don't want the main thread to wait for us
+    timeout_timer.daemon = True
 
     settings = dict(default_settings)
     settings.update(method.args.get('settings', {}))
