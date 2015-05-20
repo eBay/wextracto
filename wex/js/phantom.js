@@ -117,6 +117,7 @@ page.onLoadFinished = function(status) {
     } else {
         logError("onLoadFinished with no response for '" +
                  navigation[navigation.length-1].url + "'");
+        system.stdout.write("HTTP/1.1 502 PHANTOMJS ERROR\r\n\r\n");
         phantom.exit(1);
     }
 };
