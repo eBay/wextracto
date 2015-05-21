@@ -19,9 +19,11 @@ from publicsuffix import PublicSuffixList
 
 from .composed import composable
 from .iterable import map_if_iter
-from .value import json_encode
+from .value import encode_json
 
 logger = logging.getLogger(__name__)
+
+
 
 DEFAULT_METHOD = 'get'
 
@@ -104,7 +106,7 @@ class URL(text_type):
     def update_fragment_dict(self, **kw):
         fragment_dict = dict(self.fragment_dict)
         fragment_dict.update(kw)
-        fragment = json_encode(fragment_dict)
+        fragment = encode_json(fragment_dict)
         return self.__class__(urlunparse(self.parsed._replace(fragment=fragment)))
 
     @property

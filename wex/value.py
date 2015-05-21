@@ -20,41 +20,36 @@ And we could decode this line with the following Python snippet:
 Using tab-delimiters is convenient for downstream processing using Unix 
 command line tools such as :command:`cut` and :command:`grep`.
 """
-
+from __future__ import print_function
 import sys
-from json import JSONEncoder
+import json
 from itertools import product
-from functools import partial
 from operator import itemgetter
 from six import PY2, text_type, reraise
 from six.moves import map
 import logging; logger = logging.getLogger(__name__)
 from .iterable import walk, flatten, do_not_iter
 
-
 TAB = '\t'
 NL = '\n'
 
-if PY2:
-    JSONEncoder = partial(JSONEncoder, encoding='UTF-8')
-
-json_encode = JSONEncoder(
-    skipkeys=False,
-    check_circular=True,
-    allow_nan=True,
-    indent=None,
+json_encoder_kwargs = dict(
     separators=(',', ':'),
     default=None,
     sort_keys=True,
-    # may need to make this an argument at some point,
-    # but for now let's assume UTF-8 is ok on the output.
     ensure_ascii=False,
-).encode
+)
 
 
-def encode(obj):
+if PY2:
+    json_encoder_kwargs['encoding'] = 'utf-8'
+
+
+encode_json = json.JSONEncoder(**json_encoder_kwargs).encode
+
+def encode_field(obj):
     try:
-        return json_encode(obj)
+        return encode_json(obj)
     except TypeError:
         return '#' + text_type(repr(obj)) + '!'
 
@@ -79,8 +74,8 @@ class Value(tuple):
 
     def text(self):
         """ Returns the text this value as a labelled JSON line. """
-        iterables = [map(encode, flatten(label)) for label in self.labels]
-        iterables.append(map(encode, flatten(self.value, should_iter_unless_list)))
+        iterables = [map(encode_field, flatten(label)) for label in self.labels]
+        iterables.append(map(encode_field, flatten(self.value, should_iter_unless_list)))
         for fields in product(*iterables):
             yield TAB.join(fields) + NL
 
