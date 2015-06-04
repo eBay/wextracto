@@ -155,7 +155,24 @@ class URL(text_type):
 #============================================================
 
 
-public_suffix_list = PublicSuffixList()
+# Work-around for:
+# https://bitbucket.org/pypa/wheel/issue/120
+def open_publicsuffix_txt():
+    import sys
+    import codecs
+    from pkg_resources import resource_filename
+
+    basename = 'publicsuffix.txt'
+    paths = [resource_filename('publicsuffix', basename),
+             # for some reason wheel installation puts the file here
+             os.path.join(sys.prefix, basename)]
+
+    for path in paths:
+        if os.path.exists(path):
+            return codecs.open(path, 'r', 'utf-8')
+
+
+public_suffix_list = PublicSuffixList(open_publicsuffix_txt())
 
 
 @composable
