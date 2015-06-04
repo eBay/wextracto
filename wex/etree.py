@@ -9,19 +9,20 @@ import wex.py2compat ; assert wex.py2compat
 from six import string_types
 from six.moves.urllib_parse import urljoin, quote, unquote
 from functools import partial
-from operator import is_, methodcaller
+from operator import is_, methodcaller, itemgetter
 import codecs
 
-from six.moves import reduce
+from six.moves import map, reduce
 
 from lxml.etree import XPath, _ElementTree, _Element, Element
 from lxml.cssselect import CSSSelector
 from lxml.html import XHTML_NAMESPACE, HTMLParser
 
-from .composed import composable, wraps
+from .composed import composable
 from .cache import cached
-from .iterable import _do_not_iter_append, map_if_iter, filter_if_iter, flatten
+from .iterable import _do_not_iter_append, flatten, filter_if_iter
 from .ncr import replace_invalid_ncr
+from .url import URL, public_suffix
 
 SKIP = object()
 skip = partial(is_, SKIP)
@@ -88,16 +89,27 @@ def parse(src):
 
 
 @cached
-def get_base_url(root):
+def get_base_url_from_root(root):
     if root.base_url:
+        # see :func:`.parse` for why we need to unquote
         base_url = unquote(root.base_url)
     else:
         base_url = root.base_url
     return reduce(urljoin, base_href(root)[:1], base_url)
 
 
+def get_base_url(elem_or_tree):
+    if hasattr(elem_or_tree, 'getroottree'):
+        tree = elem_or_tree.getroottree()
+    else:
+        # if it doesn't have getroottree() we presume it's a tree!
+        tree = elem_or_tree
+    return get_base_url_from_root(tree.getroot())
+
+
 def map_if_list(func):
-    @wraps(func)
+    @composable
+    #@wraps(func)
     def _map_if_list(arg):
         if isinstance(arg, list):
             return list(flatten(map(func, arg)))
@@ -147,35 +159,54 @@ def attrib(name, default=None):
     return map_if_list(getter)
 
 
-def join_to_base_url(url_getter, same_domain=True):
-    def base_url_join(elem_or_tree, *args, **kwargs):
-        if hasattr(elem_or_tree, 'getroottree'):
-            tree = elem_or_tree.getroottree()
-        else:
-            tree = elem_or_tree
-        base_url = get_base_url(tree.getroot())
-        url = url_getter(elem_or_tree)
-        # urljoin requires 'find' so give up if we don't find it (e.g. None)
-        if hasattr(url, 'find'):
-            joined_url = urljoin(base_url, url.strip())
-            if (same_domain and 
-                not joined_url.startswith(urljoin(base_url, '/'))):
-                return None
-            return joined_url
-        return url
-    return map_if_iter(base_url_join) | filter_if_iter(None)
+def base_url_pair_getter(get_url):
+    @composable
+    def get_base_url_pair(elem_or_tree):
+        base_url = get_base_url(elem_or_tree)
+        url = get_url(elem_or_tree)
+        if url and url.strip():
+            url = urljoin(base_url, url and url.strip())
+        return (URL(base_url), URL(url))
+    return get_base_url_pair
 
+
+def same_public_suffix(base_url_pair):
+    if all(base_url_pair):
+        suffix = '.' + public_suffix(base_url_pair[0])
+        dot_hostname = '.' + base_url_pair[1].parsed.hostname
+        if (dot_hostname.endswith(suffix) and
+            base_url_pair[0].parsed.scheme == base_url_pair[1].parsed.scheme):
+            return base_url_pair[1]
+
+
+def same_domain(base_url_pair):
+    if (all(base_url_pair) and
+        base_url_pair[0].parsed[:2] == base_url_pair[1].parsed[:2]):
+        return base_url_pair[1]
+
+
+href_base_url_pair = base_url_pair_getter(methodcaller('get', 'href'))
+
+href_url_1 = href_base_url_pair | same_public_suffix
 
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute
 #: URL from an ``href`` attribute as long as it is from the same domain
 #: as the base URl of the response.
-href_url = join_to_base_url(methodcaller('get', 'href'), same_domain=True)
+href_url = map_if_list(href_url_1) | filter_if_iter(bool)
+
+href_any_url_1 = href_base_url_pair | itemgetter(1)
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute
 #: URL from an ``href`` attribute.
-href_any_url = join_to_base_url(methodcaller('get', 'href'), same_domain=False)
+href_any_url = map_if_list(href_any_url_1) | filter_if_iter(bool)
+
+
+src_base_url_pair = base_url_pair_getter(methodcaller('get', 'src'))
+
+src_url_1 = src_base_url_pair | itemgetter(1)
+
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute
 #: URL from an ``src`` attribute.
-src_url = join_to_base_url(methodcaller('get', 'src'), same_domain=False)
+src_url = map_if_list(src_url_1) | filter_if_iter(bool)
 
 
 @composable

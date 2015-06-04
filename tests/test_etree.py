@@ -24,7 +24,7 @@ X-wex-request-url: http://some.com/
    <img src="http://other.com/src" />
     <div id="links">
       <a href="/1"></a>
-      <a href="http://base.com/2"></a>
+      <a href="http://subdomain.base.com/2"></a>
       <a href="http://other.com/"></a>
     </div>
     <div id="iter_text">This is <span>some </span>text.</div>
@@ -131,7 +131,7 @@ def test_href_url():
     # we want the result to be an iterable, but not a list
     assert hasattr(res, '__iter__')
     assert not isinstance(res, list)
-    assert list(res) == ['http://base.com/1', 'http://base.com/2']
+    assert list(res) == ['http://base.com/1', 'http://subdomain.base.com/2']
 
 
 def test_href_any_url():
@@ -140,7 +140,9 @@ def test_href_any_url():
     # we want the result to be an iterable, but not a list
     assert hasattr(res, '__iter__')
     assert not isinstance(res, list)
-    assert list(res) == ['http://base.com/1', 'http://base.com/2', 'http://other.com/']
+    assert list(res) == ['http://base.com/1',
+                         'http://subdomain.base.com/2',
+                         'http://other.com/']
 
 
 def test_href_url_single():
@@ -207,19 +209,11 @@ def test_list_text():
     assert func(create_response(example)) == ['1', '', '2']
 
 
-def test_join_to_base_url_not_joinable():
-    obj = object()
-    def not_joinable(src):
-        return obj
-    f = e.join_to_base_url(not_joinable)
-    ret = f(e.parse(create_response(example)))
-    assert ret is obj
-
-
 def test_href_when_url_contains_dodgy_characters():
     f = e.css('a') | e.href_url | list
+    r = create_response(example_with_dodgy_url)
     # This will fail if we don't quote/unquote the base_url
-    assert f(create_response(example_with_dodgy_url)) == ['http://foo.com/1']
+    assert f(r) == ['http://foo.com/1']
 
 
 def test_itertext():
