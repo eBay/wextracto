@@ -15,7 +15,7 @@ try:
 except CalledProcessError:
     version_info = (0, 0, 0)
 else:
-    version_info = tuple(map(int, version.split('.')))
+    version_info = tuple(map(int, version.split(b'.')))
 
 old_phantomjs_version = pytest.mark.skipif(version_info < (2, 0, 0),
                                            reason='phantomjs version to old')
