@@ -131,6 +131,12 @@ function writeWexOut(nav) {
         var header = nav.response.headers[i];
         wexout.push(header.name + ": " + header.value.replace(/\n/g, " "));
     }
+    var context = request.context || {};
+    for (var key in context) {
+        if (context.hasOwnProperty(key)) {
+            wexout.push("X-wex-context-" + key + ": " + context[key]);
+        }
+    }
     wexout.push("X-wex-request-url: " + request.url);
     wexout.push("X-wex-url: " + nav.response.url);
     wexout.push("");
@@ -138,7 +144,7 @@ function writeWexOut(nav) {
     // previously I found PhantomJS will hang if I call write to stdout
     // multiple times (but only for large responses) so we join it all
     // in memory and then send it in one call.
-    wexout= wexout.join("\r\n");
+    wexout = wexout.join("\r\n");
     system.stdout.write(wexout);
 }
 

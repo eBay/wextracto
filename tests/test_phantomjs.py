@@ -9,9 +9,11 @@ def test_phantomjs():
     method = {"phantomjs":{"requires":[["wex","js/bcr.js"]]}}
     url = url.update_fragment_dict(method=method)
     elements = []
-    for response in map(Response.from_readable, url.get()):
+    context = {'foo': 'bar'}
+    for response in map(Response.from_readable, url.get(context=context)):
         tree = parse(response)
         elements.extend(tree.xpath('//h1'))
+        assert response.headers.get('X-wex-context-foo') == 'bar'
     assert len(elements) == 1
     assert 'bcr-left' in elements[0].attrib
     assert 'bcr-top' in elements[0].attrib

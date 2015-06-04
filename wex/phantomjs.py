@@ -43,9 +43,11 @@ def request_using_phantomjs(url, method, session=None, **kw):
         "requires": requires,
         "settings": settings,
         "loglevel": logging.getLogger(__name__).getEffectiveLevel(),
+        "context": kw.get("context", {}),
     }
     dumped = json.dumps(request)
     if not isinstance(dumped, binary_type):
+        # Python 3 json.dumps produces unicode, but stdin needs binary
         dumped = dumped.encode('utf-8')
     phantomjs.stdin.write(dumped)
     phantomjs.stdin.close()

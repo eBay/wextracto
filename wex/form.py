@@ -22,8 +22,10 @@ class ParserReadable(object):
 
 
     @classmethod
-    def from_response(cls, response, url, decode_content):
-        return cls(readable_from_response(response, url, decode_content))
+    def from_response(cls, response, url, decode_content, context):
+        return cls(readable_from_response(response, url,
+                                          decode_content=decode_content,
+                                          context=context))
 
     @property
     def name(self):
@@ -63,6 +65,7 @@ def submit_form(url, method, session=None, **kw):
         session.stream = True
 
     decode_content = kw.get('decode_content', True)
+    context = kw.get('context', {})
 
     response = session.request(
         'get',
@@ -74,14 +77,18 @@ def submit_form(url, method, session=None, **kw):
         timeout=timeout,
         allow_redirects=False,
     )
-    readable = ParserReadable.from_response(response, url, decode_content)
+    readable = ParserReadable.from_response(response, url,
+                                            decode_content=decode_content,
+                                            context=context)
     yield readable
 
     redirects = session.resolve_redirects(response, response.request,
                                           stream=True, timeout=timeout)
 
     for response in redirects:
-        readable = ParserReadable.from_response(response, url, decode_content)
+        readable = ParserReadable.from_response(response, url,
+                                                decode_content=decode_content,
+                                                context=context)
         yield readable
 
     if readable.root is None:
@@ -125,9 +132,13 @@ def submit_form(url, method, session=None, **kw):
         timeout=timeout,
         allow_redirects=False,
     )
-    yield readable_from_response(response, url, decode_content)
+    yield readable_from_response(response, url,
+                                 decode_content=decode_content,
+                                 context=context)
 
     redirects = session.resolve_redirects(response, response.request,
                                           stream=True, timeout=timeout)
     for redirect in redirects:
-        yield readable_from_response(redirect, url, decode_content)
+        yield readable_from_response(redirect, url,
+                                     decode_content=decode_content,
+                                     context=context)

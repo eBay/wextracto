@@ -21,6 +21,7 @@ def request(url, method, session=None, **kw):
         session.stream = True
 
     decode_content = kw.get('decode_content', True)
+    context = kw.get('context', {})
 
     response = session.request(
         method.name,
@@ -32,15 +33,15 @@ def request(url, method, session=None, **kw):
         timeout=timeout,
         allow_redirects=False,
     )
-    yield readable_from_response(response, url, decode_content)
+    yield readable_from_response(response, url, decode_content, context)
 
     redirects = session.resolve_redirects(response, response.request,
                                           stream=True, timeout=timeout)
     for redirect in redirects:
-        yield readable_from_response(redirect, url, decode_content)
+        yield readable_from_response(redirect, url, decode_content, context)
 
 
-def readable_from_response(response, url, decode_content=True):
+def readable_from_response(response, url, decode_content, context):
     """ Make an object that is readable by `Response`.from_file. """
 
     headers = io.TextIOWrapper(io.BytesIO(), encoding='utf-8', newline='\n')
@@ -60,6 +61,8 @@ def readable_from_response(response, url, decode_content=True):
         headers.write(format_header('X-wex-url', response.url))
     if magic_bytes == GZIP_MAGIC:
         headers.write(format_header('X-wex-has-gzip-magic', '1'))
+    for name, value in context.items():
+        headers.write(format_header('X-wex-context-{}'.format(name), value))
     headers.write(CRLF)
     headers.seek(0)
 
