@@ -196,15 +196,13 @@ class ConnectionHandler:
             if count == time_out_max:
                 break
 
-def start_server(host='localhost', port=None, IPv6=False, timeout=60,
+def start_server(host='localhost', port=0, IPv6=False, timeout=60,
                   handler=ConnectionHandler):
     if IPv6==True:
         soc_type=socket.AF_INET6
     else:
         soc_type=socket.AF_INET
     soc = socket.socket(soc_type)
-    if port is None:
-        port = int(os.environ.get('TESTS_HTTPPROXY_PORT', 0))
     soc.bind((host, port))
     print("http://%s:%d" % soc.getsockname())
     # we really need this to be seen immediately
@@ -225,7 +223,8 @@ def start_server(host='localhost', port=None, IPv6=False, timeout=60,
 class HttpProxy(object):
 
     def __enter__(self):
-        self.popen = Popen(['python', __file__], stdout=PIPE, env=os.environ)
+        port = os.environ.get('TESTS_HTTPPROXY_PORT', '0')
+        self.popen = Popen(['python', __file__, port], stdout=PIPE, env=os.environ)
         self.url = self.popen.stdout.readline().rstrip()
         if isinstance(self.url, binary_type):
             self.url = self.url.decode('utf-8')
@@ -240,4 +239,8 @@ class HttpProxy(object):
 
 
 if __name__ == '__main__':
-    start_server()
+    if sys.argv[1:]:
+        port = int(sys.argv[1])
+    else:
+        port = 0
+    start_server(port=port)
