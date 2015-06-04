@@ -66,8 +66,6 @@ save_excl_group.add_argument(
 process_pool_size_group = argparser.add_argument_group('Parallel processing using multiprocessing.Pool')
 
 process_pool_size = process_pool_size_group.add_mutually_exclusive_group()
-#process_pool_size = argparser.add_mutually_exclusive_group()
-#process_pool_size = argparser
 
 process_pool_size.add_argument(
     '-P',
@@ -108,7 +106,6 @@ on_exc.add_argument(
 class WriteExtractedValues(object):
 
     def __init__(self, stdout, extract):
-        self.log = logging.getLogger(__name__)
         self.stdout = stdout
         self.extract = extract
 
@@ -132,12 +129,11 @@ class WriteExtractedValues(object):
                 # unix convention is that exit code 0 is correct for a broken pipe
                 retval = SystemExit(0)
             else:
-                self.log.exception('reading %r', readable)
+                logging.getLogger(__name__).exception('reading %r', readable)
                 retval = SystemExit(exc)
 
         except Exception as exc:
-
-            self.log.exception('while extracting from %r', readable)
+            logging.getLogger(__name__).exception('while extracting from %r', readable)
             raise
 
         return retval

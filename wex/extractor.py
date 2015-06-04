@@ -33,7 +33,7 @@ class Chained(object):
         return '%s(%r)' % (self.__class__.__name__, self.extractors)
 
 
-    def __call__(self, *args, **kw):
+    def chained(self, *args, **kw):
 
         if self.set_trace:
             # Give a hook for debugging
@@ -49,6 +49,8 @@ class Chained(object):
                 seek(0)
             for value in yield_values(extractor, *args, **kw):
                 yield value
+
+    __call__ = chained
 
     def append(self, extractor):
         self.extractors.append(extractor)
@@ -140,13 +142,15 @@ class Named(object):
     def __len__(self):
         return len(self.extractors)
 
-    def __call__(self, *args, **kwargs):
+    def named(self, *args, **kwargs):
         if self.set_trace:
             # Give a hook for debugging
             self.set_trace()
         for name, extractor in self.extractors.items():
             for value in yield_values(extractor, *args, **kwargs):
                 yield value.label(name)
+
+    __call__ = named
 
     def add(self, extractor, label=None):
         """ Add an attribute extractor.
@@ -161,7 +165,7 @@ class Named(object):
 
         .. code-block:: python
 
-            attrs = Attributes()
+            attrs = Named()
 
             @attrs.add
             def attr1(response):
@@ -174,6 +178,7 @@ class Named(object):
 
 
 def named(**kw):
+    """ Returns a :class:`.Named` collection of extractors. """
     return Named(**kw)
 
 
@@ -194,7 +199,7 @@ class Labelled(object):
                 labels.append(label)
         return labels
 
-    def __call__(self, *args, **kw):
+    def labelled(self, *args, **kw):
         if self.set_trace:
             self.set_trace()
         labels = self.get_labels(*args, **kw)
@@ -203,6 +208,8 @@ class Labelled(object):
             return
         for value in yield_values(self.extractor, *args, **kw):
             yield value.label(*labels)
+
+    __call__ = labelled
 
 
 def labelled(*args):
@@ -255,7 +262,7 @@ class If(object):
         self.if_true = if_true
         self.if_false = if_false
 
-    def __call__(self, *args, **kw):
+    def if_(self, *args, **kw):
 
         if self.cond(*args, **kw):
             extractor = self.if_true
@@ -267,6 +274,8 @@ class If(object):
 
         for value in yield_values(extractor, *args, **kw):
             yield value
+
+    __call__ = if_
 
 
 def if_(cond, if_true, if_false=None):

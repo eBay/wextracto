@@ -3,6 +3,7 @@ import os
 import io
 import errno
 import sys
+import time
 import subprocess
 from itertools import tee
 from six import BytesIO
@@ -39,19 +40,34 @@ def find_file_paths(top):
     return set(paths)
 
 
-def test_wex_console_script():
+def start_wex_subprocess(args=['--help']):
     env = dict(os.environ)
     egg = resource_filename(__name__, 'fixtures/TestMe.egg')
     env['PYTHONPATH'] = egg
     # This test will fail unless you run setup.py develop or setup.py install
     exe = os.path.join(os.path.dirname(sys.executable), 'wex')
+    cmd = [exe] + args
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, env=env)
+
+
+def test_wex_console_script():
     # this url is cunningly crafted to generate UTF-8 output
     url = 'http://httpbin.org/get?this=that%C2%AE'
-    cmd = [exe, url]
-    wex = subprocess.Popen(cmd, stdout=subprocess.PIPE, env=env)
+    wex = start_wex_subprocess([url])
     output = wex.stdout.read()
     assert wex.wait() == 0
     assert output == b'"this"\t"that\xc2\xae"\n'
+
+
+def test_wex_multiprocessing():
+    url = 'http://httpbin.org/get?this=that%C2%AE'
+    wex = start_wex_subprocess(['-P', url])
+    ret = None
+    for i in range(300):
+        ret = wex.poll()
+        if ret is None:
+            time.sleep(0.1)
+    assert ret is not None
 
 
 def run_main(monkeypatch, args):

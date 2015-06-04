@@ -38,6 +38,7 @@ from __future__ import absolute_import, unicode_literals, print_function
 import os
 import sys
 import codecs
+from six import PY3
 from multiprocessing import Lock
 from .readable import EXT_WEXIN
 
@@ -51,10 +52,11 @@ lock = Lock()
 
 class StdOut(object):
 
-    if sys.stdout.encoding is None:
-        stdout = codecs.getwriter('UTF-8')(sys.stdout)
+    if PY3:
+        # force 'utf-8' encoding on stdout
+        stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
     else:
-        stdout = sys.stdout
+        stdout = codecs.getwriter('utf-8')(sys.stdout)
 
     def __init__(self, readable):
         self.readable = readable

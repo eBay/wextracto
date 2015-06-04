@@ -19,9 +19,11 @@ from publicsuffix import PublicSuffixList
 
 from .composed import composable
 from .iterable import map_if_iter
-from .value import json_encode
+from .value import encode_json
 
 logger = logging.getLogger(__name__)
+
+
 
 DEFAULT_METHOD = 'get'
 
@@ -104,7 +106,7 @@ class URL(text_type):
     def update_fragment_dict(self, **kw):
         fragment_dict = dict(self.fragment_dict)
         fragment_dict.update(kw)
-        fragment = json_encode(fragment_dict)
+        fragment = encode_json(fragment_dict)
         return self.__class__(urlunparse(self.parsed._replace(fragment=fragment)))
 
     @property
@@ -153,7 +155,24 @@ class URL(text_type):
 #============================================================
 
 
-public_suffix_list = PublicSuffixList()
+# Work-around for:
+# https://bitbucket.org/pypa/wheel/issue/120
+def open_publicsuffix_txt():
+    import sys
+    import codecs
+    from pkg_resources import resource_filename
+
+    basename = 'publicsuffix.txt'
+    paths = [resource_filename('publicsuffix', basename),
+             # for some reason wheel installation puts the file here
+             os.path.join(sys.prefix, basename)]
+
+    for path in paths:
+        if os.path.exists(path):
+            return codecs.open(path, 'r', 'utf-8')
+
+
+public_suffix_list = PublicSuffixList(open_publicsuffix_txt())
 
 
 @composable

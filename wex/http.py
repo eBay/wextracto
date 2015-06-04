@@ -4,6 +4,7 @@ from __future__ import unicode_literals, print_function
 import wex.py2compat ; assert wex.py2compat
 import io
 import requests
+from requests.sessions import merge_setting
 from gzip import GzipFile
 from .readable import ChainedReadable
 
@@ -21,26 +22,33 @@ def request(url, method, session=None, **kw):
         session.stream = True
 
     decode_content = kw.get('decode_content', True)
+    proxies = kw.get('proxies', None)
+    headers = merge_setting(method.args.get('headers'), kw.get('headers'))
+    context = kw.get('context', {})
 
     response = session.request(
         method.name,
         url,
-        params=method.args.get('params', None),
-        data=method.args.get('data', None),
-        headers=method.args.get('headers', None),
-        cookies=method.args.get('cookies', None),
-        timeout=timeout,
         allow_redirects=False,
+        cookies=method.args.get('cookies', None),
+        data=method.args.get('data', None),
+        headers=headers,
+        params=method.args.get('params', None),
+        proxies=proxies,
+        timeout=timeout,
     )
-    yield readable_from_response(response, url, decode_content)
+    yield readable_from_response(response, url, decode_content, context)
 
-    redirects = session.resolve_redirects(response, response.request,
-                                          stream=True, timeout=timeout)
+    redirects = session.resolve_redirects(response,
+                                          response.request,
+                                          proxies=proxies,
+                                          stream=True,
+                                          timeout=timeout)
     for redirect in redirects:
-        yield readable_from_response(redirect, url, decode_content)
+        yield readable_from_response(redirect, url, decode_content, context)
 
 
-def readable_from_response(response, url, decode_content=True):
+def readable_from_response(response, url, decode_content, context):
     """ Make an object that is readable by `Response`.from_file. """
 
     headers = io.TextIOWrapper(io.BytesIO(), encoding='utf-8', newline='\n')
@@ -60,6 +68,8 @@ def readable_from_response(response, url, decode_content=True):
         headers.write(format_header('X-wex-url', response.url))
     if magic_bytes == GZIP_MAGIC:
         headers.write(format_header('X-wex-has-gzip-magic', '1'))
+    for name, value in context.items():
+        headers.write(format_header('X-wex-context-{}'.format(name), value))
     headers.write(CRLF)
     headers.seek(0)
 

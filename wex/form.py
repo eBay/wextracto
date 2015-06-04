@@ -4,7 +4,7 @@ from six import BytesIO
 from six.moves.urllib_parse import urljoin
 from .py2compat import parse_headers
 from .iterable import one
-from .http import timeout, readable_from_response
+from .http import timeout, readable_from_response, merge_setting
 from .etree import create_html_parser, get_base_url
 from .response import Response
 
@@ -22,8 +22,10 @@ class ParserReadable(object):
 
 
     @classmethod
-    def from_response(cls, response, url, decode_content):
-        return cls(readable_from_response(response, url, decode_content))
+    def from_response(cls, response, url, decode_content, context):
+        return cls(readable_from_response(response, url,
+                                          decode_content=decode_content,
+                                          context=context))
 
     @property
     def name(self):
@@ -63,25 +65,36 @@ def submit_form(url, method, session=None, **kw):
         session.stream = True
 
     decode_content = kw.get('decode_content', True)
+    proxies = kw.get('proxies', None)
+    context = kw.get('context', {})
+    headers = merge_setting(method.args.get('headers'), kw.get('headers'))
 
     response = session.request(
         'get',
         url,
-        params=method.args.get('params', None),
-        data=None,
-        headers=method.args.get('headers', None),
-        cookies=method.args.get('cookies', None),
-        timeout=timeout,
         allow_redirects=False,
+        cookies=method.args.get('cookies', None),
+        data=None,
+        headers=headers,
+        params=method.args.get('params', None),
+        proxies=proxies,
+        timeout=timeout,
     )
-    readable = ParserReadable.from_response(response, url, decode_content)
+    readable = ParserReadable.from_response(response, url,
+                                            decode_content=decode_content,
+                                            context=context)
     yield readable
 
-    redirects = session.resolve_redirects(response, response.request,
-                                          stream=True, timeout=timeout)
+    redirects = session.resolve_redirects(response,
+                                          response.request,
+                                          proxies=proxies,
+                                          stream=True,
+                                          timeout=timeout)
 
     for response in redirects:
-        readable = ParserReadable.from_response(response, url, decode_content)
+        readable = ParserReadable.from_response(response, url,
+                                                decode_content=decode_content,
+                                                context=context)
         yield readable
 
     if readable.root is None:
@@ -119,15 +132,23 @@ def submit_form(url, method, session=None, **kw):
         form_method,
         form_action_url,
         params=params,
-        data=data,
-        headers=method.args.get('headers', None),
-        cookies=method.args.get('cookies', None),
-        timeout=timeout,
         allow_redirects=False,
+        cookies=method.args.get('cookies', None),
+        data=data,
+        headers=headers,
+        proxies=proxies,
+        timeout=timeout,
     )
-    yield readable_from_response(response, url, decode_content)
+    yield readable_from_response(response, url,
+                                 decode_content=decode_content,
+                                 context=context)
 
-    redirects = session.resolve_redirects(response, response.request,
-                                          stream=True, timeout=timeout)
+    redirects = session.resolve_redirects(response,
+                                          response.request,
+                                          proxies=proxies,
+                                          stream=True,
+                                          timeout=timeout)
     for redirect in redirects:
-        yield readable_from_response(redirect, url, decode_content)
+        yield readable_from_response(redirect, url,
+                                     decode_content=decode_content,
+                                     context=context)

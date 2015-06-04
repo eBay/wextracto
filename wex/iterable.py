@@ -90,6 +90,7 @@ def map_if_iter(func, should_iter=should_iter):
 
 def filter_if_iter(func):
     @composable
+    @wraps(func)
     def wrapper(arg):
         if not should_iter(arg):
             return arg

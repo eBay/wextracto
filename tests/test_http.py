@@ -3,28 +3,37 @@ import codecs
 from wex.url import URL
 from wex.response import Response
 from wex.http import decode
+from httpproxy import HttpProxy
 
 utf8_reader = codecs.getreader('UTF-8')
 
-def test_get():
-    url = 'http://httpbin.org/headers'
-    assert get(url) == [200]
 
-
-def test_get_with_redirect():
-    url = 'http://httpbin.org/redirect-to?url=http://httpbin.org/headers'
-    assert get(url) == [302, 200]
-
-
-def get(url):
+def get(url, **kw):
     codes = []
-    for readable in URL(url).get():
+    for readable in URL(url).get(**kw):
         response = Response.from_readable(readable)
         codes.append(response.code)
         if response.code == 200:
             data = json.load(utf8_reader(decode(response)))
             assert 'headers' in data
     return codes
+
+
+def test_get():
+    url = 'http://httpbin.org/headers'
+    assert get(url) == [200]
+
+
+def test_get_with_context():
+    url = 'http://httpbin.org/headers'
+    for readable in URL(url).get(context={'foo': 'bar'}):
+        response = Response.from_readable(readable)
+        assert response.headers.get('X-wex-context-foo') == 'bar'
+
+
+def test_get_with_redirect():
+    url = 'http://httpbin.org/redirect-to?url=http://httpbin.org/headers'
+    assert get(url) == [302, 200]
 
 
 def test_get_gzip():
@@ -44,3 +53,15 @@ def test_post():
         response = Response.from_readable(readable)
         data = json.load(utf8_reader(response))
         assert data['form'] == method['post']['data']
+
+
+def test_get_using_proxies():
+    url = 'http://httpbin.org/redirect-to?url=http://httpbin.org/headers'
+    with HttpProxy() as proxy:
+        proxies = {'http': proxy.url, 'https': proxy.url}
+        assert get(url, proxies=proxies) == [302, 200]
+    expected = [
+        b'GET http://httpbin.org/redirect-to?url=http://httpbin.org/headers HTTP/1.1',
+        b'GET http://httpbin.org/headers HTTP/1.1',
+    ]
+    assert proxy.requests == expected
