@@ -204,10 +204,7 @@ def start_server(host='localhost', port=None, IPv6=False, timeout=60,
         soc_type=socket.AF_INET
     soc = socket.socket(soc_type)
     if port is None:
-        if 'TRAVIS' in os.environ:
-            port = 8080
-        else:
-            port = 0
+        port = int(os.environ.get('TESTS_HTTPPROXY_PORT', 0))
     soc.bind((host, port))
     print("http://%s:%d" % soc.getsockname())
     # we really need this to be seen immediately
@@ -228,7 +225,7 @@ def start_server(host='localhost', port=None, IPv6=False, timeout=60,
 class HttpProxy(object):
 
     def __enter__(self):
-        self.popen = Popen(['python', __file__], stdout=PIPE)
+        self.popen = Popen(['python', __file__], stdout=PIPE, env=os.environ)
         self.url = self.popen.stdout.readline().rstrip()
         if isinstance(self.url, binary_type):
             self.url = self.url.decode('utf-8')
