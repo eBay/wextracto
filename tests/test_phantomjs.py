@@ -1,15 +1,27 @@
-import os
+from subprocess import check_output, CalledProcessError
+from six.moves import map
 import pytest
 from wex.response import Response
 from wex.etree import parse
 from wex.url import URL
-from six.moves import map
 from httpproxy import HttpProxy
 
 url = URL('http://httpbin.org/html')
 method = {"phantomjs":{"requires":[["wex","js/bcr.js"]]}}
 url = url.update_fragment_dict(method=method)
 
+try:
+    version = check_output(['phantomjs', '--version'])
+except CalledProcessError:
+    version_info = (0, 0, 0)
+else:
+    version_info = tuple(map(int, version.split('.')))
+
+old_phantomjs_version = pytest.mark.skipif(version_info < (2, 0, 0),
+                                           reason='phantomjs version to old')
+
+
+@old_phantomjs_version
 def test_phantomjs():
     elements = []
     context = {'foo': 'bar'}
@@ -24,7 +36,8 @@ def test_phantomjs():
     assert 'bcr-bottom' in elements[0].attrib
 
 
-@pytest.mark.skipif('TRAVIS' in os.environ, reason='phantomjs missing setProxy')
+
+@old_phantomjs_version
 def test_phantomjs_using_proxies():
     elements = []
     with HttpProxy() as proxy:
