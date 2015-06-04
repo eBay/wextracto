@@ -1,3 +1,5 @@
+import os
+import pytest
 from wex.response import Response
 from wex.etree import parse
 from wex.url import URL
@@ -22,6 +24,7 @@ def test_phantomjs():
     assert 'bcr-bottom' in elements[0].attrib
 
 
+@pytest.mark.skipif('TRAVIS' in os.environ, reason='phantomjs missing setProxy')
 def test_phantomjs_using_proxies():
     elements = []
     with HttpProxy() as proxy:

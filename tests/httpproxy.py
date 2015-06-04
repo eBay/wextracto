@@ -196,13 +196,18 @@ class ConnectionHandler:
             if count == time_out_max:
                 break
 
-def start_server(host='localhost', port=0, IPv6=False, timeout=60,
+def start_server(host='localhost', port=None, IPv6=False, timeout=60,
                   handler=ConnectionHandler):
     if IPv6==True:
         soc_type=socket.AF_INET6
     else:
         soc_type=socket.AF_INET
     soc = socket.socket(soc_type)
+    if port is None:
+        if 'TRAVIS' in os.environ:
+            port = 8080
+        else:
+            port = 0
     soc.bind((host, port))
     print("http://%s:%d" % soc.getsockname())
     # we really need this to be seen immediately
