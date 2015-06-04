@@ -46,6 +46,15 @@ function logError(msg, prefix) {
     }
 }
 
+// set proxy if specified
+if (request.proxy) {
+    phantom.setProxy(request.proxy.hostname,
+                     request.proxy.port,
+                     request.proxy.type,
+                     request.proxy.username,
+                     request.proxy.password);
+}
+
 
 // webpage callbacks
 

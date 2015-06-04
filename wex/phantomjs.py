@@ -2,6 +2,7 @@ import os
 import logging
 import json
 from six import binary_type
+from six.moves.urllib_parse import urlparse
 from threading import Timer
 from subprocess import Popen, PIPE
 from pkg_resources import resource_filename
@@ -17,6 +18,21 @@ default_settings = {'loadImages': False}
 def request_using_phantomjs(url, method, session=None, **kw):
 
     phantomjs = Popen(cmd, stdin=PIPE, stdout=PIPE)
+
+    proxies = kw.get('proxies', None)
+    if proxies:
+        # only 'http' proxies for now
+        proxy_url = proxies['http']
+        parsed = urlparse(proxy_url)
+        proxy = {
+            'type': 'http',
+            'hostname': parsed.hostname,
+            'port': parsed.port or 80,
+            'username': parsed.username,
+            'password': parsed.password,
+        }
+    else:
+        proxy = None
 
     def terminate_phantomjs():
         if phantomjs.poll() is not None:
@@ -44,6 +60,7 @@ def request_using_phantomjs(url, method, session=None, **kw):
         "settings": settings,
         "loglevel": logging.getLogger(__name__).getEffectiveLevel(),
         "context": kw.get("context", {}),
+        "proxy": proxy,
     }
     dumped = json.dumps(request)
     if not isinstance(dumped, binary_type):
