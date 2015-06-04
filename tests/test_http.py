@@ -56,6 +56,11 @@ def test_post():
 
 
 def test_get_using_proxies():
+
+    import os
+    import pprint
+    pprint.pprint(dict(os.environ))
+
     url = 'http://httpbin.org/redirect-to?url=http://httpbin.org/headers'
     with HttpProxy() as proxy:
         proxies = {'http': proxy.url, 'https': proxy.url}
