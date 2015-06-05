@@ -2,6 +2,7 @@ import requests
 from six import iteritems
 from six import BytesIO
 from six.moves.urllib_parse import urljoin
+from lxml.html import _nons
 from .py2compat import parse_headers
 from .iterable import one
 from .http import timeout, readable_from_response, merge_setting
@@ -56,6 +57,42 @@ class ParserReadable(object):
 
     def close(self):
         self.readable.close()
+
+
+# just like:
+# https://github.com/lxml/lxml/blob/master/src/lxml/html/__init__.py#L1004
+# but doesn't ignore <input type="submit" ...> elements
+def form_values(self):
+    """
+    Return a list of tuples of the field values for the form.
+    This is suitable to be passed to ``urllib.urlencode()``.
+    """
+    results = []
+    for el in self.inputs:
+        name = el.name
+        if not name:
+            continue
+        tag = _nons(el.tag)
+        if tag == 'textarea':
+            results.append((name, el.value))
+        elif tag == 'select':
+            value = el.value
+            if el.multiple:
+                for v in value:
+                    results.append((name, v))
+            elif value is not None:
+                results.append((name, el.value))
+        else:
+            assert tag == 'input', (
+                "Unexpected tag: %r" % el)
+            if el.checkable and not el.checked:
+                continue
+            if el.type in ('image', 'reset'):
+                continue
+            value = el.value
+            if value is not None:
+                results.append((name, el.value))
+    return results
 
 
 def submit_form(url, method, session=None, **kw):
@@ -122,11 +159,11 @@ def submit_form(url, method, session=None, **kw):
     form_method = form.method.upper()
     if form_method in ('POST', 'PUT'):
         # this implies 'application/x-www-form-urlencoded'
-        data = form.form_values()
+        data = form_values(form)
         params = None
     else:
         data = None
-        params = form.form_values()
+        params = form_values(form)
 
     response = session.request(
         form_method,
