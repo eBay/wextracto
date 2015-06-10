@@ -4,13 +4,14 @@ Composable functions for extracting data using
 """
 
 from __future__ import absolute_import, unicode_literals, print_function
-import logging
 import wex.py2compat ; assert wex.py2compat
-from six import string_types
-from six.moves.urllib_parse import urljoin, quote, unquote
+import logging
+import codecs
+from itertools import islice
 from functools import partial
 from operator import is_, methodcaller, itemgetter
-import codecs
+from six import string_types
+from six.moves.urllib_parse import urljoin, quote, unquote
 
 from six.moves import map, reduce
 
@@ -164,35 +165,57 @@ def base_url_pair_getter(get_url):
     def get_base_url_pair(elem_or_tree):
         base_url = get_base_url(elem_or_tree)
         url = get_url(elem_or_tree)
-        if url and url.strip():
-            url = urljoin(base_url, url and url.strip())
-        return (URL(base_url), URL(url))
+        if url:
+            url = URL(urljoin(base_url, url.strip()))
+        return (URL(base_url), url)
     return get_base_url_pair
 
 
-def same_public_suffix(base_url_pair):
-    if all(base_url_pair):
-        suffix = '.' + public_suffix(base_url_pair[0])
-        dot_hostname = '.' + base_url_pair[1].parsed.hostname
-        if (dot_hostname.endswith(suffix) and
-            base_url_pair[0].parsed.scheme == base_url_pair[1].parsed.scheme):
-            return base_url_pair[1]
+def same_domain(url_pair):
+    """ Return second url of pair if both are from same domain. """
+
+    if not all(url_pair):
+        return None
+
+    base_url, url = map(URL, islice(url_pair, 2))
+    if base_url.parsed[:2] == url.parsed[:2]:
+        return url
+
+    return None
 
 
-def same_domain(base_url_pair):
-    if (all(base_url_pair) and
-        base_url_pair[0].parsed[:2] == base_url_pair[1].parsed[:2]):
-        return base_url_pair[1]
+def same_suffix(url_pair):
+    """ Return second url of pair if both are from same public suffix. """
+
+    if not all(url_pair):
+        return None
+
+    base_url, url = map(URL, islice(url_pair, 2))
+
+    if url.parsed.hostname is None:
+        return None
+
+    base_suffix = public_suffix(base_url)
+    dot_suffix = '.' + base_suffix
+    dot_hostname = '.' + url.parsed.hostname
+    if dot_hostname.endswith(dot_suffix):
+        return url
+
 
 
 href_base_url_pair = base_url_pair_getter(methodcaller('get', 'href'))
 
-href_url_1 = href_base_url_pair | same_public_suffix
+href_url_1 = href_base_url_pair | same_domain
+href_url_same_suffix_1 = href_base_url_pair | same_suffix
+
+
 
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute
 #: URL from an ``href`` attribute as long as it is from the same domain
 #: as the base URl of the response.
 href_url = map_if_list(href_url_1) | filter_if_iter(bool)
+
+href_url_same_suffix = map_if_list(href_url_same_suffix_1) | filter_if_iter(bool)
 
 href_any_url_1 = href_base_url_pair | itemgetter(1)
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute

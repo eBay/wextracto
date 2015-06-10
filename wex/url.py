@@ -75,6 +75,8 @@ class URL(text_type):
     """ URL objects. """
 
     def __new__(cls, urlstring):
+        if not isinstance(urlstring, string_types):
+            raise ValueError
         url = super(URL, cls).__new__(cls, urlstring)
         url.parsed = urlparse(url)
         return url

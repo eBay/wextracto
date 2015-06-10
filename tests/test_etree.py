@@ -3,8 +3,10 @@ from six import BytesIO
 from lxml import html
 from operator import itemgetter
 from wex.cache import Cache
+from wex.url import URL
 from wex.response import Response, parse_headers
 from wex import etree as e
+from wex.py2compat import parse_headers
 from wex.iterable import flatten
 
 example = b"""HTTP/1.1 200 OK
@@ -58,9 +60,37 @@ def create_response(data):
     return Response.from_readable(BytesIO(data))
 
 
+def create_html_parser(monkeypatch, content_type):
+    class HTMLParser(object):
+        def __init__(self, **kw):
+            self.kw = kw
+    monkeypatch.setattr(e, 'HTMLParser', HTMLParser)
+    lines = [content_type, '', '']
+    CRLF = b'\r\n'
+    headers = parse_headers(BytesIO(CRLF.join(lines)))
+    return e.create_html_parser(headers)
+
+
+def test_create_html_parser(monkeypatch):
+    content_type = 'Content-Type:text/html;charset=ISO8859-1'
+    parser = create_html_parser(monkeypatch, content_type)
+    assert parser.kw == {'encoding': 'windows-1252'}
+
+
+def test_create_html_parser_charset_lookup_error(monkeypatch):
+    content_type = 'Content-Type:text/html;charset=WTF-123'
+    parser = create_html_parser(monkeypatch, content_type)
+    assert parser.kw == {'encoding': 'WTF-123'}
+
+
 def test_parse():
     etree = e.parse(create_response(example))
     assert etree.xpath('//h1/text()') == ['hi']
+
+
+def test_parse_unreadable():
+    obj = object()
+    assert e.parse(obj) is obj
 
 
 def test_parse_ioerror():
@@ -125,8 +155,24 @@ def test_img_src():
     assert list(res) == ['http://other.com/src']
 
 
+def test_get_base_url():
+    response = create_response(example)
+    tree = e.parse(response)
+    base_url = e.get_base_url(tree)
+    assert base_url == 'http://base.com/'
+
+
 def test_href_url():
     f = e.css('#links a') | e.href_url
+    res = f(create_response(example))
+    # we want the result to be an iterable, but not a list
+    assert hasattr(res, '__iter__')
+    assert not isinstance(res, list)
+    assert list(res) == ['http://base.com/1']
+
+
+def test_href_url_same_suffix():
+    f = e.css('#links a') | e.href_url_same_suffix
     res = f(create_response(example))
     # we want the result to be an iterable, but not a list
     assert hasattr(res, '__iter__')
@@ -153,6 +199,31 @@ def test_href_url_single():
 def test_href_empty():
     f = e.css('#nosuch') | e.href_url | list
     assert f(create_response(example)) == []
+
+
+def test_same_suffix():
+    f = e.same_suffix
+    base = 'http://example.net'
+    assert f((None, None)) == None
+    assert f(('', None)) == None
+    assert f(('com', None)) == None
+    assert f((base, None)) == None
+    assert f((base, 'http://example.net')) == 'http://example.net'
+    assert f((base, 'http://www.example.net')) == 'http://www.example.net'
+    assert f((base, 'javascript:alert("hi")')) == None
+
+
+def test_same_domain():
+    base = 'http://example.net'
+    f = e.same_domain
+    assert f((None, None)) == None
+    assert f(('', None)) == None
+    assert f(('com', None)) == None
+    assert f((base, None)) == None
+    assert f((base, 'http://example.net')) == 'http://example.net'
+    assert f((base, 'http://www.example.net')) == None
+    assert f((base, 'javascript:alert("hi")')) == None
+
 
 
 def test_normalize_space():
