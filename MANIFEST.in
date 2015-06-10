@@ -1,2 +1,2 @@
-include README.rst LICENSE.txt NOTICES.txt HISTORY.rst requirements.txt wex/logging.conf wex/phantomjs.js wex/js/*.js
+include README.rst LICENSE.txt NOTICES.txt HISTORY.rst requirements.txt wex/logging.conf wex/js/*.js
 
