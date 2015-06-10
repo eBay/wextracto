@@ -3,10 +3,8 @@ from six import BytesIO
 from lxml import html
 from operator import itemgetter
 from wex.cache import Cache
-from wex.url import URL
 from wex.response import Response, parse_headers
 from wex import etree as e
-from wex.py2compat import parse_headers
 from wex.iterable import flatten
 
 example = b"""HTTP/1.1 200 OK
@@ -65,22 +63,22 @@ def create_html_parser(monkeypatch, content_type):
         def __init__(self, **kw):
             self.kw = kw
     monkeypatch.setattr(e, 'HTMLParser', HTMLParser)
-    lines = [content_type, '', '']
+    lines = [content_type, b'', b'']
     CRLF = b'\r\n'
     headers = parse_headers(BytesIO(CRLF.join(lines)))
     return e.create_html_parser(headers)
 
 
 def test_create_html_parser(monkeypatch):
-    content_type = 'Content-Type:text/html;charset=ISO8859-1'
+    content_type = b'Content-Type:text/html;charset=ISO8859-1'
     parser = create_html_parser(monkeypatch, content_type)
     assert parser.kw == {'encoding': 'windows-1252'}
 
 
 def test_create_html_parser_charset_lookup_error(monkeypatch):
-    content_type = 'Content-Type:text/html;charset=WTF-123'
+    content_type = b'Content-Type:text/html;charset=wtf-123'
     parser = create_html_parser(monkeypatch, content_type)
-    assert parser.kw == {'encoding': 'WTF-123'}
+    assert parser.kw == {'encoding': 'wtf-123'}
 
 
 def test_parse():

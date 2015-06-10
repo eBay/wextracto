@@ -89,7 +89,7 @@ import sys
 import socket, select, re
 import threading
 from subprocess import Popen, PIPE
-from six import PY3, binary_type
+from six import PY3, binary_type, text_type
 
 __version__ = b'0.1.0 Draft 1'
 BUFLEN = 8192
@@ -220,10 +220,18 @@ def start_server(host='localhost', port=0, IPv6=False, timeout=60,
 
 
 
+
 class HttpProxy(object):
 
+    next_port = int(os.environ.get('TESTS_HTTPPROXY_PORT', '0'))
+
     def __enter__(self):
-        port = os.environ.get('TESTS_HTTPPROXY_PORT', '0')
+        if HttpProxy.next_port:
+            port = text_type(HttpProxy.next_port)
+            HttpProxy.next_port += 1
+        else:
+            # let the OS decide
+            port = '0'
         self.popen = Popen(['python', __file__, port], stdout=PIPE, env=os.environ)
         self.url = self.popen.stdout.readline().rstrip()
         if isinstance(self.url, binary_type):
