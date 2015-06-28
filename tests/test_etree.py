@@ -5,7 +5,7 @@ from operator import itemgetter
 from wex.cache import Cache
 from wex.response import Response, parse_headers
 from wex import etree as e
-from wex.iterable import flatten
+from wex.iterable import first, flatten
 
 example = b"""HTTP/1.1 200 OK
 X-wex-request-url: http://some.com/
@@ -28,15 +28,12 @@ X-wex-request-url: http://some.com/
       <a href="http://other.com/"></a>
     </div>
     <div id="iter_text">This is <span>some </span>text.</div>
-    <div id="nbsp">&nbsp;</div>
+    <div id="nbsp">&nbsp;&nbsp;</div>
     <div id="br">oh<br>my</div>
-    <ul>
-      <li class="num"> 1</li>
-      <li class="num"></li>
-      <li class="num">2 </li>
-    </ul>
+    <ul><li> 1</li><li></li><li>2 </li></ul>
     <div class="thing">First <span>one thing</span></div>
     <div class="thing">then <span>another thing</span>.</div>
+    <div id="drop-tree">Drop this<script>javascript</script> please.</div>
   </body>
 </html>
 """
@@ -223,44 +220,19 @@ def test_same_domain():
     assert f((base, 'javascript:alert("hi")')) == None
 
 
-
-def test_normalize_space():
-    assert e.normalize_space('a') == 'a'
-
-
-def test_normalize_space_list():
-    gen = e.normalize_space(['a'])
-    assert list(gen) == ['a']
-
-
-def test_normalize_space_gen():
-    gen = e.normalize_space((ch for ch in 'a'))
-    assert list(gen) == ['a']
-
-
-def test_normalize_space_nested():
-    gen = e.normalize_space([['a', ['b', 'c']], ['d']])
-    assert list(gen) == ['a b c', 'd']
-
-
 def test_text():
     f = e.css('h1') | e.text | list
     assert f(create_response(example)) == ['hi']
 
 
-def test_text_from_xpath():
-    f = e.xpath('//h1/text()') | e.text | list
-    assert f(create_response(example)) == ['hi']
-
-
 def test_nbsp():
-    func = e.css('#nbsp') | e.itertext | flatten | list
-    assert func(create_response(example)) == [u'\xa0']
+    func = e.css('#nbsp') | e.itertext() | list
+    assert func(create_response(example)) == [u'\xa0\xa0']
 
 
-def test_text_br():
-    func = e.css('#br') | e.text | list
-    assert func(create_response(example)) == ['oh my']
+def test_text_content_with_br():
+    f = e.css('#br') | e.text_content
+    assert f(create_response(example)) == ['oh\nmy']
 
 
 def test_text_html_comment():
@@ -268,13 +240,13 @@ def test_text_html_comment():
     assert [t for t in e.text(tree)] == []
 
 
-def test_join_text():
-    func = e.css('ul li') | e.join_text
-    assert func(create_response(example)) == '1 2'
+def test_list_text_content():
+    func = e.css('ul li') | e.text_content
+    assert func(create_response(example)) == [' 1', '', '2 ']
 
 
-def test_list_text():
-    func = e.css('ul li') | e.text | list
+def test_list_normalize_space():
+    func = e.css('ul li') | e.normalize_space
     assert func(create_response(example)) == ['1', '', '2']
 
 
@@ -286,12 +258,24 @@ def test_href_when_url_contains_dodgy_characters():
 
 
 def test_itertext():
-    f = e.css('.thing') | e.itertext | flatten | list
+    f = e.css('.thing') | e.itertext() | flatten | list
     expected = ['First ', 'one thing', 'then ', 'another thing', '.']
     assert f(create_response(example)) == expected
 
 
 def test_itertext_elem():
-    f = e.css('.thing') | (lambda l: l[0]) | e.itertext | list
+    f = e.css('.thing') | first | e.itertext() | list
     expected = ['First ', 'one thing']
     assert f(create_response(example)) == expected
+
+
+def test_normalize_space_nbsp():
+    f = e.css('#nbsp') | e.normalize_space
+    assert f(create_response(example)) == ['']
+
+
+def test_drop_tree():
+    f = (e.xpath('//*[@id="drop-tree"]') |
+         e.drop_tree(e.css('script')) |
+         e.xpath('string()'))
+    assert f(create_response(example)) == ['Drop this please.']

@@ -1,38 +1,22 @@
 from __future__ import unicode_literals
-from wex.composed import map
 from wex.iterable import flatten
 from operator import methodcaller
 
-
-space_join = ' '.join
-
-
-def split(*split_args):
-    split_func = methodcaller('split', *split_args)
-    return map(split_func)
-
-
-# with default arguments splits whitespace
-split_ws = split()
-
-
-def norm_ws_1(s):
-    return space_join(s.split())
-
-
-norm_ws = flatten | map(norm_ws_1)
-
+strip = methodcaller('strip')
 
 def partition(separator, **kw):
-    norm = kw.pop('norm', norm_ws_1)
-    norm_head = kw.pop('norm_head', norm)
-    norm_tail = kw.pop('norm_tail', norm)
-    def partition_1(s):
-        head, sep, tail = s.partition(separator)
-        if norm_head:
-            head = norm_head(head)
-        if norm_tail:
-            tail = norm_tail(tail)
-        if sep:
-            yield (head, tail)
-    return flatten | map(partition_1)
+    """ Returns a function that yields tuples created by partitioning
+        text using `separator`.
+    """
+    normalize_head = kw.pop('normalize_head', strip)
+    normalize_tail = kw.pop('normalize_tail', strip)
+    def _partition(obj):
+        for s in flatten(obj):
+            head, sep, tail = s.partition(separator)
+            if normalize_head:
+                head = normalize_head(head)
+            if normalize_tail:
+                tail = normalize_tail(tail)
+            if sep:
+                yield (head, tail)
+    return _partition
