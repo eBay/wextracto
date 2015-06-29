@@ -212,6 +212,7 @@ def start_server(host='localhost', port=0, IPv6=False, timeout=60,
         try:
             accepted = soc.accept()
         except KeyboardInterrupt:
+            soc.close()
             break
 
         args = accepted + (timeout,)
