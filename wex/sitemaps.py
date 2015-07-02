@@ -9,7 +9,7 @@ import wex.py2compat ; assert wex.py2compat
 from lxml.etree import iterparse
 from codecs import getreader
 from six.moves.urllib_parse import urljoin
-from wex.extractor import Chained
+from wex.extractor import chained
 from wex.http import decode
 from wex.url import URL
 
@@ -42,8 +42,9 @@ def urls_from_urlset_or_sitemapindex(response):
         `sitemaps.org <http://www.sitemaps.org/protocol.html>`_.
     """
 
-    content_subtype = response.headers.get_content_subtype()
-    if 'xml' not in content_subtype.split('+'):
+    sitemap = URL(response.url).fragment_dict.get('sitemap')
+    content_subtypes = response.headers.get_content_subtype().split('+')
+    if not sitemap and not 'xml' in content_subtypes:
         return
 
     root = None
@@ -59,13 +60,10 @@ def urls_from_urlset_or_sitemapindex(response):
         if elem.tag.endswith('}loc') and elem.text is not None:
             text = elem.text.strip()
             if text:
-                # according to http://www.sitemaps.org/protocol.html#locdef
-                # these 
-                # this 
+                # http://www.sitemaps.org/protocol.html#locdef
                 url = URL(urljoin(response.url, text))
                 if elem.getparent().tag.endswith('}sitemap'):
-                    # add a sitemap=True to fragment so that
-                    # in case we need to read an Atom, RSS or text file.
+                    # set sitemap=True to help downstream processing
                     url = url.update_fragment_dict(sitemap=True)
                 yield "url", url
 
@@ -76,5 +74,5 @@ def urls_from_urlset_or_sitemapindex(response):
 
 #: Extractor that combines :func:`.urls_from_robots_txt` and
 #: :func:`.urls_from_urlset_or_sitemapindex`.
-urls_from_sitemaps = Chained(urls_from_robots_txt,
+urls_from_sitemaps = chained(urls_from_robots_txt,
                              urls_from_urlset_or_sitemapindex)
