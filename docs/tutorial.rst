@@ -7,8 +7,8 @@ Tutorial
 Introduction
 ~~~~~~~~~~~~
 
-This tutorial shows you how to use Wextracto to extract data from an HTML web
-page.
+This tutorial shows you how to extract data from an HTML web page using
+Wextracto.
 
 To work through the tutorial you need to download and install
 `Python <https://www.python.org/downloads/>`_.
@@ -36,14 +36,13 @@ You are now ready to begin the tutorial.
 Writing A Minimal Extractor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-An extractor is a function that takes an HTTP response as a parameter and
-returns (or yields) values extracted from it.  Our extractor is going to 
-return the URL of the response.  Write or copy the following into a file 
-called ``tutorial.py``:
+An extractor is a function that takes an HTTP response and returns values 
+extracted from it.  Our extractor is going to return the URL of the response.
+Write or copy the following into a file called ``tutorial.py``:
 
 .. literalinclude:: samples/tutorial/step1/tutorial.py
 
-The ``response`` parameter here is 
+The ``response`` parameter here is
 file-like object of the type used by the standard library
 `urllib2 <https://docs.python.org/2/library/urllib2.html#urllib2.urlopen>`_.
 
@@ -61,17 +60,18 @@ Now run ``wex`` with the following URL:
 
 Congratulations, you have just written an extractor!
 
-.. _xpath-expressions:
+.. _selecting-elements:
 
-XPath Expressions
-~~~~~~~~~~~~~~~~~
+Selecting Elements
+~~~~~~~~~~~~~~~~~~
 
 Python has a great library for processing XML and HTML data called 
 `lxml <http://lxml.de/>`_.  We can use this library in our extractor.
 
 Let's use a simple `XPath <http://en.wikipedia.org/wiki/XPath>`_ expression 
-to get some text from our chosen web page.  Edit ``tutorial.py`` to look
-like this:
+to get some text from our chosen web page.
+
+Edit ``tutorial.py`` to look like this:
 
 .. literalinclude:: samples/tutorial/step2/tutorial.py
 
@@ -92,21 +92,19 @@ You may also have noticed the leading and trailing whitespace.  We'll look
 at how to get rid of that in the next section.
 
 
-Normalized Text
+Extracting Text
 ~~~~~~~~~~~~~~~
 
-Probably the most common pattern for an extractor is that we have an XPath (or 
-`CSS <http://lxml.de/cssselect.html#the-cssselector-class>`_) selector to
-select exactly one HTML element and then you want the space-normalized text 
-inside that element and any sub-elements.  Space-normalized means runs of 
-whitespace are converted into a single space character and leading and 
-trailing whitespace is trimmed.
+When extracting text from withing HTML elements we generalling want that text
+to be space-normalized.  This means runs of whitespace are converted into a 
+single space character and leading and trailing whitespace is trimmed.
 
-Wextracto provides functions to do exactly that.  Here is what our extractor now looks like:
+Wextracto provides the :func:`text <wex.etree.text>` function to do return the
+space-normalized text for each selected element.
+
+Here is what our extractor now looks like:
 
 .. literalinclude:: samples/tutorial/step3/tutorial.py
-
-The :func:`text <wex.etree.text>` function returns the normalized text from each selectedelement.  The :class:`one <wex.iterable.one>` function ensures there is exactly one selected element.
 
 Let's run ``wex`` with the usual URL again to check the result:
 
@@ -119,10 +117,15 @@ That's much tidier!
 
 You may be wondering why we don't just use the XPath
 `normalize-space <https://developer.mozilla.org/en-US/docs/Web/XPath/Functions/normalize-space>`_
-function.  The reason is that when our extractor encounters a page where it 
-extracts multiple elements then ``normalize-space()`` would
-silently take the text from the first element.  This is bad news because we
-want our extractors to fail loudly if things are not the way we expect.
+function.  There actually several reasons why we do not want to do this, most of which are specific to extracting text from HTML as opposed to XML:
+
+The :func:`text <wex.etree.text>` function:
+   * understands `<br>` tags
+   * uses a unicode definition of whitespace (e.g. non breaking spaces)
+   * can work with multiple nodes in an node-set
+
+Note that `lxml` only supports XPath version 1.  Some of these problems could
+be avoided if XPath version 2 were available.
 
 
 .. _multiple-values:

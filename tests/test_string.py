@@ -1,6 +1,7 @@
 from wex import string as s
 
 
-def test_split_ws():
-    gen = (str for str in (' a ', ' b '))
-    assert list(s.split_ws(gen)) == [['a'], ['b']]
+def test_partition():
+    f = s.partition(':')
+    strings = [' x : 1 ', 'y 1', 'z: 2']
+    assert list(f(strings)) == [('x', '1'), ('z', '2')]

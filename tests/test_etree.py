@@ -5,7 +5,7 @@ from operator import itemgetter
 from wex.cache import Cache
 from wex.response import Response, parse_headers
 from wex import etree as e
-from wex.iterable import flatten
+from wex.iterable import first, flatten
 
 example = b"""HTTP/1.1 200 OK
 X-wex-request-url: http://some.com/
@@ -28,15 +28,12 @@ X-wex-request-url: http://some.com/
       <a href="http://other.com/"></a>
     </div>
     <div id="iter_text">This is <span>some </span>text.</div>
-    <div id="nbsp">&nbsp;</div>
+    <div id="nbsp">&nbsp;&nbsp;</div>
     <div id="br">oh<br>my</div>
-    <ul>
-      <li class="num"> 1</li>
-      <li class="num"></li>
-      <li class="num">2 </li>
-    </ul>
+    <ul><li> 1</li><li></li><li>2 </li></ul>
     <div class="thing">First <span>one thing</span></div>
     <div class="thing">then <span>another thing</span>.</div>
+    <div id="drop-tree">Drop this<script>javascript</script> please.</div>
   </body>
 </html>
 """
@@ -58,9 +55,37 @@ def create_response(data):
     return Response.from_readable(BytesIO(data))
 
 
+def create_html_parser(monkeypatch, content_type):
+    class HTMLParser(object):
+        def __init__(self, **kw):
+            self.kw = kw
+    monkeypatch.setattr(e, 'HTMLParser', HTMLParser)
+    lines = [content_type, b'', b'']
+    CRLF = b'\r\n'
+    headers = parse_headers(BytesIO(CRLF.join(lines)))
+    return e.create_html_parser(headers)
+
+
+def test_create_html_parser(monkeypatch):
+    content_type = b'Content-Type:text/html;charset=ISO8859-1'
+    parser = create_html_parser(monkeypatch, content_type)
+    assert parser.kw == {'encoding': 'windows-1252'}
+
+
+def test_create_html_parser_charset_lookup_error(monkeypatch):
+    content_type = b'Content-Type:text/html;charset=wtf-123'
+    parser = create_html_parser(monkeypatch, content_type)
+    assert parser.kw == {'encoding': 'wtf-123'}
+
+
 def test_parse():
     etree = e.parse(create_response(example))
     assert etree.xpath('//h1/text()') == ['hi']
+
+
+def test_parse_unreadable():
+    obj = object()
+    assert e.parse(obj) is obj
 
 
 def test_parse_ioerror():
@@ -125,8 +150,24 @@ def test_img_src():
     assert list(res) == ['http://other.com/src']
 
 
+def test_get_base_url():
+    response = create_response(example)
+    tree = e.parse(response)
+    base_url = e.get_base_url(tree)
+    assert base_url == 'http://base.com/'
+
+
 def test_href_url():
     f = e.css('#links a') | e.href_url
+    res = f(create_response(example))
+    # we want the result to be an iterable, but not a list
+    assert hasattr(res, '__iter__')
+    assert not isinstance(res, list)
+    assert list(res) == ['http://base.com/1']
+
+
+def test_href_url_same_suffix():
+    f = e.css('#links a') | e.href_url_same_suffix
     res = f(create_response(example))
     # we want the result to be an iterable, but not a list
     assert hasattr(res, '__iter__')
@@ -155,23 +196,28 @@ def test_href_empty():
     assert f(create_response(example)) == []
 
 
-def test_normalize_space():
-    assert e.normalize_space('a') == 'a'
+def test_same_suffix():
+    f = e.same_suffix
+    base = 'http://example.net'
+    assert f((None, None)) == None
+    assert f(('', None)) == None
+    assert f(('com', None)) == None
+    assert f((base, None)) == None
+    assert f((base, 'http://example.net')) == 'http://example.net'
+    assert f((base, 'http://www.example.net')) == 'http://www.example.net'
+    assert f((base, 'javascript:alert("hi")')) == None
 
 
-def test_normalize_space_list():
-    gen = e.normalize_space(['a'])
-    assert list(gen) == ['a']
-
-
-def test_normalize_space_gen():
-    gen = e.normalize_space((ch for ch in 'a'))
-    assert list(gen) == ['a']
-
-
-def test_normalize_space_nested():
-    gen = e.normalize_space([['a', ['b', 'c']], ['d']])
-    assert list(gen) == ['a b c', 'd']
+def test_same_domain():
+    base = 'http://example.net'
+    f = e.same_domain
+    assert f((None, None)) == None
+    assert f(('', None)) == None
+    assert f(('com', None)) == None
+    assert f((base, None)) == None
+    assert f((base, 'http://example.net')) == 'http://example.net'
+    assert f((base, 'http://www.example.net')) == None
+    assert f((base, 'javascript:alert("hi")')) == None
 
 
 def test_text():
@@ -179,19 +225,14 @@ def test_text():
     assert f(create_response(example)) == ['hi']
 
 
-def test_text_from_xpath():
-    f = e.xpath('//h1/text()') | e.text | list
-    assert f(create_response(example)) == ['hi']
-
-
 def test_nbsp():
-    func = e.css('#nbsp') | e.itertext | flatten | list
-    assert func(create_response(example)) == [u'\xa0']
+    func = e.css('#nbsp') | e.itertext() | list
+    assert func(create_response(example)) == [u'\xa0\xa0']
 
 
-def test_text_br():
-    func = e.css('#br') | e.text | list
-    assert func(create_response(example)) == ['oh my']
+def test_text_content_with_br():
+    f = e.css('#br') | e.text_content
+    assert f(create_response(example)) == ['oh\nmy']
 
 
 def test_text_html_comment():
@@ -199,13 +240,13 @@ def test_text_html_comment():
     assert [t for t in e.text(tree)] == []
 
 
-def test_join_text():
-    func = e.css('ul li') | e.join_text
-    assert func(create_response(example)) == '1 2'
+def test_list_text_content():
+    func = e.css('ul li') | e.text_content
+    assert func(create_response(example)) == [' 1', '', '2 ']
 
 
-def test_list_text():
-    func = e.css('ul li') | e.text | list
+def test_list_normalize_space():
+    func = e.css('ul li') | e.normalize_space
     assert func(create_response(example)) == ['1', '', '2']
 
 
@@ -217,12 +258,24 @@ def test_href_when_url_contains_dodgy_characters():
 
 
 def test_itertext():
-    f = e.css('.thing') | e.itertext | flatten | list
+    f = e.css('.thing') | e.itertext() | flatten | list
     expected = ['First ', 'one thing', 'then ', 'another thing', '.']
     assert f(create_response(example)) == expected
 
 
 def test_itertext_elem():
-    f = e.css('.thing') | (lambda l: l[0]) | e.itertext | list
+    f = e.css('.thing') | first | e.itertext() | list
     expected = ['First ', 'one thing']
     assert f(create_response(example)) == expected
+
+
+def test_normalize_space_nbsp():
+    f = e.css('#nbsp') | e.normalize_space
+    assert f(create_response(example)) == ['']
+
+
+def test_drop_tree():
+    f = (e.xpath('//*[@id="drop-tree"]') |
+         e.drop_tree(e.css('script')) |
+         e.xpath('string()'))
+    assert f(create_response(example)) == ['Drop this please.']

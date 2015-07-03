@@ -3,7 +3,7 @@ import codecs
 from wex.url import URL
 from wex.response import Response
 from wex.http import decode
-from httpproxy import HttpProxy
+from httpproxy import HttpProxy, skipif_travis_ci
 
 utf8_reader = codecs.getreader('UTF-8')
 
@@ -55,6 +55,7 @@ def test_post():
         assert data['form'] == method['post']['data']
 
 
+@skipif_travis_ci
 def test_get_using_proxies():
     url = 'http://httpbin.org/redirect-to?url=http://httpbin.org/headers'
     with HttpProxy() as proxy:

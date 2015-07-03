@@ -83,18 +83,22 @@ Qual a diferença entre um proxy Elite, Anónimo e Transparente?
 """
 
 from __future__ import print_function
+import pytest
 import os
 import signal
 import sys
 import socket, select, re
 import threading
 from subprocess import Popen, PIPE
-from six import PY3, binary_type
+from six import PY3, binary_type, text_type
 
 __version__ = b'0.1.0 Draft 1'
 BUFLEN = 8192
 VERSION = b'Python Proxy/'+__version__
 HTTPVER = b'HTTP/1.1'
+
+skipif_travis_ci = pytest.mark.skipif(len(os.environ.get('TRAVIS_CI', '')),
+                                      reason="port handling on travis-ci")
 
 HTTP_METHODS = [
     b'DELETE',
@@ -196,15 +200,13 @@ class ConnectionHandler:
             if count == time_out_max:
                 break
 
-def start_server(host='localhost', port=None, IPv6=False, timeout=60,
+def start_server(host='localhost', port=0, IPv6=False, timeout=60,
                   handler=ConnectionHandler):
     if IPv6==True:
         soc_type=socket.AF_INET6
     else:
         soc_type=socket.AF_INET
     soc = socket.socket(soc_type)
-    if port is None:
-        port = int(os.environ.get('TESTS_HTTPPROXY_PORT', 0))
     soc.bind((host, port))
     print("http://%s:%d" % soc.getsockname())
     # we really need this to be seen immediately
@@ -214,6 +216,7 @@ def start_server(host='localhost', port=None, IPv6=False, timeout=60,
         try:
             accepted = soc.accept()
         except KeyboardInterrupt:
+            soc.close()
             break
 
         args = accepted + (timeout,)
@@ -222,10 +225,16 @@ def start_server(host='localhost', port=None, IPv6=False, timeout=60,
 
 
 
+
 class HttpProxy(object):
 
+
     def __enter__(self):
-        self.popen = Popen(['python', __file__], stdout=PIPE, env=os.environ)
+        # let the OS decide
+        port = 0
+        # execute this file as '__main__' using port 0
+        cmd = ['python', __file__, text_type(port)]
+        self.popen = Popen(cmd, stdout=PIPE, env=os.environ)
         self.url = self.popen.stdout.readline().rstrip()
         if isinstance(self.url, binary_type):
             self.url = self.url.decode('utf-8')
@@ -236,8 +245,9 @@ class HttpProxy(object):
     def __exit__(self, *exc_info):
         os.kill(self.popen.pid, signal.SIGINT)
         self.requests = [r.strip() for r in self.popen.stdout.readlines()]
-
+        self.popen.wait()
 
 
 if __name__ == '__main__':
-    start_server()
+    port = (int(sys.argv[1]) if sys.argv[1:] else 0)
+    start_server(port=port)

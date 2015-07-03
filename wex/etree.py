@@ -4,31 +4,37 @@ Composable functions for extracting data using
 """
 
 from __future__ import absolute_import, unicode_literals, print_function
-import logging
 import wex.py2compat ; assert wex.py2compat
-from six import string_types
-from six.moves.urllib_parse import urljoin, quote, unquote
-from functools import partial
-from operator import is_, methodcaller, itemgetter
+import logging
 import codecs
-
+from itertools import islice, chain
+from copy import deepcopy
+from operator import methodcaller, itemgetter
+from six import string_types
 from six.moves import map, reduce
+from six.moves.urllib_parse import urljoin, quote, unquote
 
-from lxml.etree import XPath, _ElementTree, _Element, Element
+from lxml.etree import (XPath,
+                        _ElementTree,
+                        _Element,
+                        Element,
+                        FunctionNamespace)
 from lxml.cssselect import CSSSelector
 from lxml.html import XHTML_NAMESPACE, HTMLParser
 
-from .composed import composable
+from .composed import composable, Composable
 from .cache import cached
-from .iterable import _do_not_iter_append, flatten, filter_if_iter
+from .iterable import _do_not_iter_append, filter_if_iter
 from .ncr import replace_invalid_ncr
 from .url import URL, public_suffix
 
-SKIP = object()
-skip = partial(is_, SKIP)
+
+NEWLINE = u'\n'
+EMPTY = u''
+SPACE = u' '
 
 
-# don't want to flatten elements
+# we do not want to flatten etree elements
 _do_not_iter_append(_Element)
 
 UNPARSEABLE = Element('unparseable')
@@ -36,10 +42,32 @@ UNPARSEABLE = Element('unparseable')
 base_href = XPath('//base[@href]/@href | //x:base[@href]/@href',
                   namespaces={'x': XHTML_NAMESPACE})
 
-space_join = composable(' '.join)
-
-
 default_namespaces = {'re': 'http://exslt.org/regular-expressions'}
+
+# see http://lxml.de/extensions.html#the-functionnamespace
+function_namespace = FunctionNamespace(None)
+
+_html_text_nodes = XPath(
+    'descendant-or-self::node()' +
+    '[not(local-name()) or not(text())]' +
+    '[not(ancestor::script or ancestor::style)]'
+)
+
+def _wex_html_text(context, arg=None):
+    if arg is None:
+        arg = [context.context_node]
+    html_text = []
+    for node in chain.from_iterable(map(_html_text_nodes, arg)):
+        tag = getattr(node, 'tag', None)
+        if tag is None:
+            html_text.append(node)
+        elif tag == 'br':
+            html_text.append(NEWLINE)
+        else:
+            html_text.append(EMPTY)
+    return EMPTY.join(html_text)
+
+function_namespace['wex-html-text'] = _wex_html_text
 
 
 def create_html_parser(headers):
@@ -107,14 +135,21 @@ def get_base_url(elem_or_tree):
     return get_base_url_from_root(tree.getroot())
 
 
-def map_if_list(func):
-    @composable
-    #@wraps(func)
-    def _map_if_list(arg):
-        if isinstance(arg, list):
-            return list(flatten(map(func, arg)))
-        return func(arg)
-    return _map_if_list
+class map_if_list(Composable):
+
+    def __init__(self, func):
+        self.func = func
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__, self.func)
+
+    def __compose__(self):
+        return (self,)
+
+    def __call__(self, *args, **kwargs):
+        if args and isinstance(args[0], list):
+            return [res for res in map(self.func, *args, **kwargs)]
+        return self.func(*args, **kwargs)
 
 
 def css(expression):
@@ -160,98 +195,150 @@ def attrib(name, default=None):
 
 
 def base_url_pair_getter(get_url):
+    """ Returns a function for gettting a tuple of `(base_url, url)` when
+        called with an etree `Element` or `ElementTree`.
+
+        In the returned pair `base_url` is the value returned from 
+        `:func:get_base_url` on the etree `Element` or `ElementTree`.
+        There second value is the value returned by calling the `get_url`
+        on the same the same etree `Element` or `ElementTree`, joined to
+        the `base_url` using `urljoin`.  This allows `get_url` to return
+        a relative URL.
+    """
     @composable
     def get_base_url_pair(elem_or_tree):
         base_url = get_base_url(elem_or_tree)
         url = get_url(elem_or_tree)
-        if url and url.strip():
-            url = urljoin(base_url, url and url.strip())
-        return (URL(base_url), URL(url))
+        if url:
+            url = URL(urljoin(base_url, url.strip()))
+        return (URL(base_url), url)
     return get_base_url_pair
 
 
-def same_public_suffix(base_url_pair):
-    if all(base_url_pair):
-        suffix = '.' + public_suffix(base_url_pair[0])
-        dot_hostname = '.' + base_url_pair[1].parsed.hostname
-        if (dot_hostname.endswith(suffix) and
-            base_url_pair[0].parsed.scheme == base_url_pair[1].parsed.scheme):
-            return base_url_pair[1]
+def same_domain(url_pair):
+    """ Return second url of pair if both are from same domain. """
+
+    if not all(url_pair):
+        return None
+
+    base_url, url = map(URL, islice(url_pair, 2))
+    if base_url.parsed[:2] == url.parsed[:2]:
+        return url
+
+    return None
 
 
-def same_domain(base_url_pair):
-    if (all(base_url_pair) and
-        base_url_pair[0].parsed[:2] == base_url_pair[1].parsed[:2]):
-        return base_url_pair[1]
+def same_suffix(url_pair):
+    """ Return second url of pair if both have the same public suffix. """
+
+    if not all(url_pair):
+        return None
+
+    base_url, url = map(URL, islice(url_pair, 2))
+
+    if url.parsed.hostname is None:
+        return None
+
+    base_suffix = public_suffix(base_url)
+    dot_suffix = '.' + base_suffix
+    dot_hostname = '.' + url.parsed.hostname
+    if dot_hostname.endswith(dot_suffix):
+        return url
 
 
+
+src_base_url_pair = base_url_pair_getter(methodcaller('get', 'src'))
 href_base_url_pair = base_url_pair_getter(methodcaller('get', 'href'))
 
-href_url_1 = href_base_url_pair | same_public_suffix
+# helpers that operate on exactly one element
+src_url_1 = src_base_url_pair | itemgetter(1)
+href_url_1 = href_base_url_pair | same_domain
+href_url_same_suffix_1 = href_base_url_pair | same_suffix
+href_any_url_1 = href_base_url_pair | itemgetter(1)
+
 
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute
 #: URL from an ``href`` attribute as long as it is from the same domain
 #: as the base URl of the response.
 href_url = map_if_list(href_url_1) | filter_if_iter(bool)
 
-href_any_url_1 = href_base_url_pair | itemgetter(1)
+#: A :class:`wex.composed.ComposedFunction` that returns the absolute
+#: URL from an ``href`` attribute as long as it is from the same 
+#: `public suffix <https://publicsuffix.org/>`_
+#: as the base URl of the response.
+href_url_same_suffix = (map_if_list(href_url_same_suffix_1) |
+                        filter_if_iter(bool))
+
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute
 #: URL from an ``href`` attribute.
 href_any_url = map_if_list(href_any_url_1) | filter_if_iter(bool)
 
-
-src_base_url_pair = base_url_pair_getter(methodcaller('get', 'src'))
-
-src_url_1 = src_base_url_pair | itemgetter(1)
 
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute
 #: URL from an ``src`` attribute.
 src_url = map_if_list(src_url_1) | filter_if_iter(bool)
 
 
-@composable
-def normalize_space(src):
-    """ Return a whitespace normalized version of its input.
+def itertext(*tags, **kw):
+    """ Return a function that will return an iterator for text.  """
+    with_tail=kw.pop('with_tail', True)
+    if kw:
+        raise ValueError('unexpected keyword arguments %s' % kw.keys())
+    @composable
+    def _itertext(src):
+        if hasattr(src, 'itertext'):
+            return src.itertext(*tags, with_tail=with_tail)
+        elif hasattr(src, '__iter__') and not isinstance(src, string_types):
+            text_nodes = (_itertext(i) for i in src)
+            return chain.from_iterable(text_nodes)
+        raise ValueError("%r is not iterable" % src)
+    return _itertext
 
-    :param src: text or iterable.
 
-    If ``src`` is iterable then a generator will be returned.
+def drop_tree(*selectors):
+    """ Return a function that will remove trees selected by `selectors`. """
+
+    @map_if_list
+    def tree_dropper(src):
+        copied = None
+        for selector in selectors:
+            selected = selector(copied if copied is not None else src)
+            if selected and copied is None:
+                copied = deepcopy(src)
+                selected = selector(copied)
+            for selection in selected:
+                selection.drop_tree()
+        return copied if copied is not None else src
+    return tree_dropper
+
+
+@map_if_list
+def normalize_space(obj):
+    """ Normalize space according to standard Python rules. 
+
+    The definition of what is space used in XPath's 
+    `normalize-space <http://www.w3.org/TR/xpath/#function-normalize-space>`_
+    is a small subset of the characters defined as space in the
+    `unicode <https://en.wikipedia.org/wiki/Whitespace_character#Unicode>`_
+    rules that Python uses.
     """
-    if isinstance(src, string_types):
-        return space_join(src.split())
-    return (normalize_space_and_join(s) for s in src)
+    if hasattr(obj, 'split'):
+        obj_as_text = obj
+    else:
+        obj_as_text = text_content(obj)
+    return SPACE.join(obj_as_text.split())
 
 
-@composable
-def normalize_space_and_join(src):
-    """ Return a string of space-normalized text content. """
-    if isinstance(src, string_types):
-        return space_join(src.split())
-    normalized = [normalize_space_and_join(s) for s in src]
-    return space_join((s for s in normalized if s.strip()))
+def list2set(obj):
+    if isinstance(obj, list):
+        return set(obj)
+    return obj
 
 
-@composable
-def itertext(src):
-    """ Iterates text from elements.
-
-        :param src: The element or elements to iterate.
-    """
-    if hasattr(src, 'itertext'):
-        # using '*' to exclude comments
-        return (t for t in src.itertext('*'))
-    elif hasattr(src, '__iter__') and not isinstance(src, string_types):
-        return (itertext(s) for s in src)
-    return src
+#: Return text content from an object (typically node-set) excluding from
+#: content from within `<script>` or `<style>` elements.
+text_content = xpath('wex-html-text(.)')
 
 
-#: A :class:`wex.composed.ComposedFunction` that returns the whitespace 
-#: normalized text from selected elements.
-text = itertext | normalize_space
-
-#: A :class:`wex.composed.ComposedCallable` that yields text nodes.
-text_nodes = itertext | flatten
-
-#: A :class:`wex.composed.ComposedFunction` that returns the whitespace 
-#: normalized text from zero or more elements joined with a space.
-join_text = itertext | normalize_space_and_join
+#: Alias for `normalize-space | list2set`
+text = normalize_space | list2set
