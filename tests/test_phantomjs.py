@@ -4,7 +4,7 @@ import pytest
 from wex.response import Response
 from wex.etree import parse
 from wex.url import URL
-from httpproxy import HttpProxy
+from httpproxy import HttpProxy, skipif_travis_ci
 
 url = URL('http://httpbin.org/html')
 method = {"phantomjs":{"requires":[["wex","js/bcr.js"]]}}
@@ -36,7 +36,7 @@ def test_phantomjs():
     assert 'bcr-bottom' in elements[0].attrib
 
 
-
+@skipif_travis_ci
 @old_phantomjs_version
 def test_phantomjs_using_proxies():
     elements = []

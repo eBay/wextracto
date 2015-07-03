@@ -2,7 +2,7 @@ import json
 from six.moves import map
 from wex.url import URL
 from wex.response import Response
-from httpproxy import HttpProxy
+from httpproxy import HttpProxy, skipif_travis_ci
 
 
 def run(**kw):
@@ -35,6 +35,7 @@ def test_submit():
     run()
 
 
+@skipif_travis_ci
 def test_submit_using_proxies():
     with HttpProxy() as proxy:
         context = {'proxy': proxy.url}

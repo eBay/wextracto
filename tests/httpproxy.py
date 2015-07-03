@@ -83,19 +83,22 @@ Qual a diferença entre um proxy Elite, Anónimo e Transparente?
 """
 
 from __future__ import print_function
+import pytest
 import os
 import signal
 import sys
 import socket, select, re
 import threading
 from subprocess import Popen, PIPE
-import getpass
 from six import PY3, binary_type, text_type
 
 __version__ = b'0.1.0 Draft 1'
 BUFLEN = 8192
 VERSION = b'Python Proxy/'+__version__
 HTTPVER = b'HTTP/1.1'
+
+skipif_travis_ci = pytest.mark.skipif(len(os.environ.get('TRAVIS_CI', '')),
+                                      reason="port handling on travis-ci")
 
 HTTP_METHODS = [
     b'DELETE',
@@ -227,16 +230,8 @@ class HttpProxy(object):
 
 
     def __enter__(self):
-        if getpass.getuser() == 'travis':
-            # travis-ci seems to have problems with transient ports
-            # and it seems to run in multiple tox envs on same
-            # machine so we do a little hacky work-around here.
-            multipliers = zip(sys.version_info[:3], (100, 10, 1))
-            offset = sum(x * y for x, y in multipliers)
-            port = 8000 + offset
-        else:
-            # let the OS decide
-            port = 0
+        # let the OS decide
+        port = 0
         # execute this file as '__main__' using port 0
         cmd = ['python', __file__, text_type(port)]
         self.popen = Popen(cmd, stdout=PIPE, env=os.environ)
