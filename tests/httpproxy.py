@@ -224,7 +224,11 @@ def start_server(host='localhost', port=0, IPv6=False, timeout=60,
 
 class HttpProxy(object):
 
-    next_port = int(os.environ.get('TESTS_HTTPPROXY_PORT', '0'))
+    next_port = int(os.environ.get('TESTS_HTTPPROXY_PORT_BASE', '0'))
+    if next_port:
+        # hack to help travis-ci tests run ok
+        # use different ports for Python 3 and Python 2
+        next_port += sys.version_info[0] * 100
 
     def __enter__(self):
         if HttpProxy.next_port:
