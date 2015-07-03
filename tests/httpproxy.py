@@ -224,20 +224,11 @@ def start_server(host='localhost', port=0, IPv6=False, timeout=60,
 
 class HttpProxy(object):
 
-    next_port = int(os.environ.get('TESTS_HTTPPROXY_PORT_BASE', '0'))
-    if next_port:
-        # hack to help travis-ci tests run ok
-        # use different ports for Python 3 and Python 2
-        next_port += sys.version_info[0] * 100
 
     def __enter__(self):
-        if HttpProxy.next_port:
-            port = text_type(HttpProxy.next_port)
-            HttpProxy.next_port += 1
-        else:
-            # let the OS decide
-            port = '0'
-        self.popen = Popen(['python', __file__, port], stdout=PIPE, env=os.environ)
+        # execute this file as '__main__' using port 0
+        cmd = ['python', __file__, '0']
+        self.popen = Popen(cmd, stdout=PIPE, env=os.environ)
         self.url = self.popen.stdout.readline().rstrip()
         if isinstance(self.url, binary_type):
             self.url = self.url.decode('utf-8')
@@ -250,10 +241,6 @@ class HttpProxy(object):
         self.requests = [r.strip() for r in self.popen.stdout.readlines()]
 
 
-
 if __name__ == '__main__':
-    if sys.argv[1:]:
-        port = int(sys.argv[1])
-    else:
-        port = 0
+    port = (sys.argv[1:] and int(sys.argv[1])) or 0
     start_server(port=port)
