@@ -239,6 +239,7 @@ class HttpProxy(object):
     def __exit__(self, *exc_info):
         os.kill(self.popen.pid, signal.SIGINT)
         self.requests = [r.strip() for r in self.popen.stdout.readlines()]
+        self.popen.wait()
 
 
 if __name__ == '__main__':
