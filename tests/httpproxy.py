@@ -89,7 +89,8 @@ import sys
 import socket, select, re
 import threading
 from subprocess import Popen, PIPE
-from six import PY3, binary_type, text_type
+import getpass
+from six import PY3, binary_type
 
 __version__ = b'0.1.0 Draft 1'
 BUFLEN = 8192
@@ -227,6 +228,7 @@ class HttpProxy(object):
 
     def __enter__(self):
         # execute this file as '__main__' using port 0
+        print("USER? %r" % getpass.getuser())
         cmd = ['python', __file__, '0']
         self.popen = Popen(cmd, stdout=PIPE, env=os.environ)
         self.url = self.popen.stdout.readline().rstrip()
