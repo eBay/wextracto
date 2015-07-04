@@ -95,12 +95,12 @@ at how to get rid of that in the next section.
 Extracting Text
 ~~~~~~~~~~~~~~~
 
-When extracting text from withing HTML elements we generalling want that text
-to be space-normalized.  This means runs of whitespace are converted into a 
-single space character and leading and trailing whitespace is trimmed.
+We normally want text we extract HTML elements to be space-normalized.
+This means runs of whitespace are converted into a single space 
+character and leading and trailing whitespace is trimmed.
 
-Wextracto provides the :func:`text <wex.etree.text>` function to do return the
-space-normalized text for each selected element.
+Wextracto provides the :func:`text <wex.etree.text>` function to return 
+the space-normalized text for each selected element.
 
 Here is what our extractor now looks like:
 
@@ -113,7 +113,7 @@ Let's run ``wex`` with the usual URL again to check the result:
     $ wex http://gilessbrown.github.io/cheeses/cheddar.html
     "Cheddar"
 
-That's much tidier!
+That is much tidier.
 
 You may be wondering why we don't just use the XPath
 `normalize-space <https://developer.mozilla.org/en-US/docs/Web/XPath/Functions/normalize-space>`_
@@ -123,10 +123,6 @@ The :func:`text <wex.etree.text>` function:
    * understands `<br>` tags
    * uses a unicode definition of whitespace (e.g. non breaking spaces)
    * can work with multiple nodes in an node-set
-
-Note that `lxml` only supports XPath version 1.  Some of these problems could
-be avoided if XPath version 2 were available.
-
 
 .. _multiple-values:
 
