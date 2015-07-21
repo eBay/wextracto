@@ -100,7 +100,10 @@ def yield_values(extract, *args, **kw):
 
     if any(exc_info) and (Value.exit_on_exc or Value.debug_on_exc):
         if Value.debug_on_exc:
-            import pdb
+            try: 
+                import ipdb as pdb
+            except ImportError:
+                import pdb
             pdb.post_mortem(exc_info[2])
         else:
             reraise(exc_info[0], exc_info[1], exc_info[2])
