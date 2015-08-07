@@ -12,11 +12,11 @@ from six.moves.urllib_parse import (urlparse,
                                     parse_qs,
                                     parse_qsl,
                                     urlencode,
-                                    unquote,
-                                    quote)
+                                    unquote)
 from pkg_resources import iter_entry_points
 from publicsuffix import PublicSuffixList
 
+from .py2compat import urlquote
 from .composed import composable
 from .iterable import map_if_iter
 from .value import encode_json
@@ -109,7 +109,8 @@ class URL(text_type):
         fragment_dict = dict(self.fragment_dict)
         fragment_dict.update(kw)
         fragment = encode_json(fragment_dict)
-        return self.__class__(urlunparse(self.parsed._replace(fragment=fragment)))
+        replaced = self.parsed._replace(fragment=fragment)
+        return self.__class__(urlunparse(replaced))
 
     @property
     def method(self):
@@ -144,11 +145,11 @@ class URL(text_type):
         encoded = self.encode('utf-8')
         hexdigest = md5(encoded).hexdigest()
         names = [self.parsed.scheme, self.parsed.netloc]
-        names.extend(self.parsed.path.split('/'))
+        names.extend(filter(None, self.parsed.path.split('/')))
         if self.parsed.query:
             names.extend(self.parsed.query.split('&'))
         names.append(hexdigest)
-        return [quote(name, safe='')[:PC_NAME_MAX] for name in names]
+        return [urlquote(name, safe='')[:PC_NAME_MAX] for name in names]
 
 
 #

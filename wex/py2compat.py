@@ -10,6 +10,7 @@ import six
 
 if six.PY2:
 
+    import urllib
     from httplib import HTTPMessage
 
     def get_content_subtype(self):
@@ -20,11 +21,18 @@ if six.PY2:
         return self.getparam('charset')
     HTTPMessage.get_content_charset = get_content_charset
 
-
     def parse_headers(fp):
         return HTTPMessage(fp, 0)
+
+    def urlquote(name, *args, **kwargs):
+        if isinstance(name, unicode):
+            name = name.encode('utf-8')
+        return urllib.quote(name, *args, **kwargs)
 
 else:
 
     from http.client import parse_headers  # pragma: no cover
     assert parse_headers                   # pragma: no cover
+
+    from six.moves.urllib_parse import quote as urlquote
+    assert urlquote
