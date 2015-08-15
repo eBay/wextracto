@@ -39,13 +39,13 @@ ncr_replacements = {
     0x9F: 0x0178,
 }
 
-LT = b'<'
-GT = b'>'
-AMP = b'&'
-SLASH = b'/'
-HASH = b'#'
+LT = '<'
+GT = '>'
+AMP = '&'
+SLASH = '/'
+HASH = '#'
 
-cdata_tags = (b'script', b'style')
+cdata_tags = ('script', 'style')
 
 class InvalidNumCharRefReplacer(object):
     """ Replaces invalid numeric character references in HTML.
@@ -60,8 +60,8 @@ class InvalidNumCharRefReplacer(object):
 
     def __init__(self, fp):
         self.fp = fp
-        self.clean = b''
-        self.dirty = b''
+        self.clean = ''
+        self.dirty = ''
         self.cdata_tag = None
 
     def read(self, size=None):
@@ -76,7 +76,7 @@ class InvalidNumCharRefReplacer(object):
             if eof:
                 assert not self.dirty
                 data = self.clean
-                self.clean = b''
+                self.clean = ''
                 return data
             elif len(self.clean) >= size:
                 data = self.clean[:size]
@@ -134,15 +134,15 @@ def clean_ncr(dirty, eof, cdata_tag=None):
 
             ncr = token.group(1)
             if ncr:
-                if ncr.lower().startswith(b'x'):
+                if ncr.lower().startswith('x'):
                     code_point = int(ncr[1:], 16)
                 else:
                     code_point = int(ncr, 10)
 
                 if code_point in ncr_replacements:
                     parts.append(dirty[part_pos:begin.start()])
-                    ncr = u'&#x%0X' % ncr_replacements[code_point]
-                    parts.append(ncr.encode('ascii'))
+                    ncr = '&#x%0X' % ncr_replacements[code_point]
+                    parts.append(ncr)
                     part_pos = token.end()
 
         pos = token.end()
@@ -153,15 +153,15 @@ def clean_ncr(dirty, eof, cdata_tag=None):
     else:
         parts.append(dirty[:pos])
 
-    return b''.join(parts), dirty[pos:], cdata_tag
+    return ''.join(parts), dirty[pos:], cdata_tag
 
 #
 # When scanning for the begining of tokens we look just one character
 # at a time so that we don't have to worry about partial buffering.
 begin_tag = re.compile(LT)
-begin_tag_or_char_ref = re.compile(b'[<&]', re.I)
-end_tag = re.compile(b'(/?)\s*([a-z]+)(?=[^a-z])', re.I)
-end_char_ref = re.compile(b'[^#]|#(x[0-9A-F]+|[0-9]+)', re.I)
+begin_tag_or_char_ref = re.compile('[<&]', re.I)
+end_tag = re.compile('(/?)\s*([a-z]+)(?=[^a-z])', re.I)
+end_char_ref = re.compile('[^#]|#(x[0-9A-F]+|[0-9]+)', re.I)
 
 
 def replace_invalid_ncr(fp):

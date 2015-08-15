@@ -1,10 +1,10 @@
 """
-Composable functions for extracting data using 
+Composable functions for extracting data using
 `lxml <http://lxml.de/>`_.
 """
 
 from __future__ import absolute_import, unicode_literals, print_function
-import wex.py2compat ; assert wex.py2compat
+import wex.py2compat ; assert wex.py2compat  # flake8: noqa
 import logging
 import codecs
 from itertools import islice, chain
@@ -25,6 +25,7 @@ from lxml.html import XHTML_NAMESPACE, HTMLParser
 from .composed import composable, Composable
 from .cache import cached
 from .iterable import _do_not_iter_append, filter_if_iter
+from .htmlstream import HTMLStream
 from .ncr import replace_invalid_ncr
 from .url import URL, public_suffix
 
@@ -52,6 +53,7 @@ _html_text_nodes = XPath(
     '[not(local-name()) or not(text())]' +
     '[not(ancestor::script or ancestor::style)]'
 )
+
 
 def _wex_html_text(context, arg=None):
     if arg is None:
@@ -87,23 +89,24 @@ def create_html_parser(headers):
 @composable
 @cached
 def parse(src):
-    """ Returns an element tree create by `LXML <http://lxml.de/>`_. 
+    """ Returns an element tree create by `LXML <http://lxml.de/>`_.
        :param src: A readable object such as a :class:`wex.response.Response`.
     """
 
     if not hasattr(src, 'read'):
         return src
 
-    parser = create_html_parser(src.headers)
     etree = _ElementTree()
     try:
+        stream = HTMLStream(src)
+        parser = HTMLParser()
         # Sometimes we get URLs containing characters that aren't
         # acceptable to lxml (e.g. "http:/foo.com/bar?this=array[]").
         # When this happens lxml will quote the whole URL.
         # We don't want to have to check for this so we just always
         # quote it here and then unquote it in the `base_url` function.
         quoted_base_url = quote(src.url) if src.url else src.url
-        fp = replace_invalid_ncr(src)
+        fp = replace_invalid_ncr(stream)
         etree.parse(fp, parser=parser, base_url=quoted_base_url)
     except IOError as exc:
         logger = logging.getLogger(__name__)
@@ -154,8 +157,8 @@ class map_if_list(Composable):
 
 def css(expression):
     """ Returns a :func:`composable <wex.composed.composable>` callable that
-        will select elements defined by a 
-        `CSS selector <http://en.wikipedia.org/wiki/Cascading_Style_Sheets#Selector>`_ 
+        will select elements defined by a
+        `CSS selector <http://en.wikipedia.org/wiki/Cascading_Style_Sheets#Selector>`_
         expression.
 
         :param expression: The CSS selector expression.
@@ -168,7 +171,7 @@ def css(expression):
 
 def xpath(expression, namespaces=default_namespaces):
     """ Returns :func:`composable <wex.composed.composable>` callable that will
-        select elements defined by an 
+        select elements defined by an
         `XPath <http://en.wikipedia.org/wiki/XPath>`_ expression.
 
         :param expression: The XPath expression.
@@ -198,7 +201,7 @@ def base_url_pair_getter(get_url):
     """ Returns a function for gettting a tuple of `(base_url, url)` when
         called with an etree `Element` or `ElementTree`.
 
-        In the returned pair `base_url` is the value returned from 
+        In the returned pair `base_url` is the value returned from
         `:func:get_base_url` on the etree `Element` or `ElementTree`.
         There second value is the value returned by calling the `get_url`
         on the same the same etree `Element` or `ElementTree`, joined to
@@ -263,7 +266,7 @@ href_any_url_1 = href_base_url_pair | itemgetter(1)
 href_url = map_if_list(href_url_1) | filter_if_iter(bool)
 
 #: A :class:`wex.composed.ComposedFunction` that returns the absolute
-#: URL from an ``href`` attribute as long as it is from the same 
+#: URL from an ``href`` attribute as long as it is from the same
 #: `public suffix <https://publicsuffix.org/>`_
 #: as the base URl of the response.
 href_url_same_suffix = (map_if_list(href_url_same_suffix_1) |
@@ -281,9 +284,10 @@ src_url = map_if_list(src_url_1) | filter_if_iter(bool)
 
 def itertext(*tags, **kw):
     """ Return a function that will return an iterator for text.  """
-    with_tail=kw.pop('with_tail', True)
+    with_tail = kw.pop('with_tail', True)
     if kw:
         raise ValueError('unexpected keyword arguments %s' % kw.keys())
+
     @composable
     def _itertext(src):
         if hasattr(src, 'itertext'):
@@ -314,9 +318,9 @@ def drop_tree(*selectors):
 
 @map_if_list
 def normalize_space(obj):
-    """ Normalize space according to standard Python rules. 
+    """ Normalize space according to standard Python rules.
 
-    The definition of what is space used in XPath's 
+    The definition of what is space used in XPath's
     `normalize-space <http://www.w3.org/TR/xpath/#function-normalize-space>`_
     is a small subset of the characters defined as space in the
     `unicode <https://en.wikipedia.org/wiki/Whitespace_character#Unicode>`_
