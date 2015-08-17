@@ -41,10 +41,11 @@ PRE_PARSE_CHUNK_SIZE = 4 * 1024
 MAX_PRE_PARSE_BYTES = 40 * 1024
 
 
+# encodings where the (printable) characters are a superset
 encoding_substitutions = {
-    # CP1252 wins because it has printable characters
-    # where ISO8859-1 has control characters
-    'iso8859-1': 'cp1252'
+    # *printable* characters
+    'iso8859-1': 'cp1252',
+    'gb2312': 'gbk',
 }
 
 #
@@ -159,7 +160,8 @@ class HTMLStream(object):
 
     def parse_head(self):
         meta = HTMLMetaEncodings()
-        parser = HTMLParser(target=meta)
+        # parser will fail on non-ascii unless we set it explicitly
+        parser = HTMLParser(target=meta, encoding='ISO-8859-1')
         meta.parser = parser
         total_bytes = 0
         while meta:
