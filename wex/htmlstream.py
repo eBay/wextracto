@@ -43,9 +43,9 @@ MAX_PRE_PARSE_BYTES = 40 * 1024
 
 # encodings where the (printable) characters are a superset
 encoding_substitutions = {
-    # *printable* characters
-    'iso8859-1': 'cp1252',
     'gb2312': 'gbk',
+    'iso8859-1': 'cp1252',
+    'iso8859-9': 'cp1254',
 }
 
 #
@@ -134,10 +134,13 @@ class HTMLStream(object):
             yield info.name, info.incrementaldecoder()
 
         # character set detection could go here
+        if ranked_encodings:
+            fallback = codecs.lookup(ranked_encodings[0])
+        else:
+            fallback = codecs.lookup('cp1252')
 
-        # the ultimate fallback and we ignore errors
-        info = codecs.lookup('cp1252')
-        yield info.name, info.incrementaldecoder('replace')
+        # for our fallback we 'replace' errors
+        yield fallback.name, fallback.incrementaldecoder('replace')
 
     def next_encoding(self):
         self.response.seek(0)
