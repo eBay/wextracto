@@ -6,14 +6,12 @@ Composable functions for extracting data using
 from __future__ import absolute_import, unicode_literals, print_function
 import wex.py2compat ; assert wex.py2compat  # flake8: noqa
 import logging
-import codecs
 from itertools import islice, chain
 from copy import deepcopy
 from operator import methodcaller, itemgetter
 from six import string_types
 from six.moves import map, reduce
 from six.moves.urllib_parse import urljoin, quote, unquote
-
 from lxml.etree import (XPath,
                         _ElementTree,
                         _Element,
@@ -72,19 +70,6 @@ def _wex_html_text(context, arg=None):
 function_namespace['wex-html-text'] = _wex_html_text
 
 
-def create_html_parser(headers):
-
-    charset = headers.get_content_charset()
-    try:
-        if charset and codecs.lookup(charset).name == 'iso8859-1':
-            charset = 'windows-1252'
-    except LookupError:
-        pass
-
-    # if charset is not specified in the Content-Type, this will be
-    # None ; encoding=None produces default (ISO 8859-1) behavior.
-    return HTMLParser(encoding=charset)
-
 
 @composable
 @cached
@@ -99,15 +84,21 @@ def parse(src):
     etree = _ElementTree()
     try:
         stream = HTMLStream(src)
-        parser = HTMLParser()
         # Sometimes we get URLs containing characters that aren't
         # acceptable to lxml (e.g. "http:/foo.com/bar?this=array[]").
         # When this happens lxml will quote the whole URL.
         # We don't want to have to check for this so we just always
         # quote it here and then unquote it in the `base_url` function.
         quoted_base_url = quote(src.url) if src.url else src.url
-        fp = replace_invalid_ncr(stream)
-        etree.parse(fp, parser=parser, base_url=quoted_base_url)
+        while True:
+            try:
+                parser = HTMLParser()
+                fp = replace_invalid_ncr(stream)
+                etree.parse(fp, parser=parser, base_url=quoted_base_url)
+                break
+            except UnicodeDecodeError:
+                stream.next_encoding()
+                #etree = _ElementTree()
     except IOError as exc:
         logger = logging.getLogger(__name__)
         logger.warning("IOError parsing %s (%s)", src.url, exc)

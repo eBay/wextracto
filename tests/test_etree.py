@@ -1,4 +1,6 @@
+# coding=utf-8
 from __future__ import unicode_literals, print_function
+from pkg_resources import resource_stream
 from six import BytesIO
 from lxml import html
 from operator import itemgetter
@@ -55,32 +57,19 @@ def create_response(data):
     return Response.from_readable(BytesIO(data))
 
 
-def create_html_parser(monkeypatch, content_type):
-    class HTMLParser(object):
-        def __init__(self, **kw):
-            self.kw = kw
-    monkeypatch.setattr(e, 'HTMLParser', HTMLParser)
-    lines = [content_type, b'', b'']
-    CRLF = b'\r\n'
-    headers = parse_headers(BytesIO(CRLF.join(lines)))
-    return e.create_html_parser(headers)
-
-
-def test_create_html_parser(monkeypatch):
-    content_type = b'Content-Type:text/html;charset=ISO8859-1'
-    parser = create_html_parser(monkeypatch, content_type)
-    assert parser.kw == {'encoding': 'windows-1252'}
-
-
-def test_create_html_parser_charset_lookup_error(monkeypatch):
-    content_type = b'Content-Type:text/html;charset=wtf-123'
-    parser = create_html_parser(monkeypatch, content_type)
-    assert parser.kw == {'encoding': 'wtf-123'}
-
-
 def test_parse():
     etree = e.parse(create_response(example))
     assert etree.xpath('//h1/text()') == ['hi']
+
+
+def test_parse_next_decoder():
+    # borrow a fixture from htmlstream
+    resource = 'fixtures/htmlstream/shift-jis-next-decoder'
+    readable = resource_stream(__name__, resource)
+    response = Response.from_readable(readable)
+    # here the parse function will try utf-8 and then shift-jis
+    etree = e.parse(response)
+    assert etree.xpath('normalize-space(//p)') == '巨'
 
 
 def test_parse_unreadable():
@@ -89,12 +78,16 @@ def test_parse_unreadable():
 
 
 def test_parse_ioerror():
+
     class ProblemResponse(object):
+
         def __init__(self):
             self.headers = parse_headers(BytesIO())
             self.url = None
+
         def read(self, *args):
             raise IOError
+
     response = ProblemResponse()
     etree = e.parse(response)
     assert etree.getroot() is e.UNPARSEABLE

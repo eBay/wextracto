@@ -1,7 +1,9 @@
 import json
+from six import BytesIO
 from six.moves import map
+from wex.form import create_html_parser
 from wex.url import URL
-from wex.response import Response
+from wex.response import Response, parse_headers
 from httpproxy import HttpProxy, skipif_travis_ci
 
 
@@ -41,7 +43,30 @@ def test_submit_using_proxies():
         context = {'proxy': proxy.url}
         run(proxies=proxy.proxies, context=context)
     expected_requests = [
-        b'GET http://httpbin.org/forms/post HTTP/1.1', 
+        b'GET http://httpbin.org/forms/post HTTP/1.1',
         b'POST http://httpbin.org/post HTTP/1.1'
     ]
     assert proxy.requests == expected_requests
+
+
+def create_html_parser_with_content_type(monkeypatch, content_type):
+    class HTMLParser(object):
+        def __init__(self, **kw):
+            self.kw = kw
+    monkeypatch.setattr('wex.form.HTMLParser', HTMLParser)
+    lines = [content_type, b'', b'']
+    CRLF = b'\r\n'
+    headers = parse_headers(BytesIO(CRLF.join(lines)))
+    return create_html_parser(headers)
+
+
+def test_create_html_parser(monkeypatch):
+    content_type = b'Content-Type:text/html;charset=ISO8859-1'
+    parser = create_html_parser_with_content_type(monkeypatch, content_type)
+    assert parser.kw == {'encoding': 'windows-1252'}
+
+
+def test_create_html_parser_charset_lookup_error(monkeypatch):
+    content_type = b'Content-Type:text/html;charset=wtf-123'
+    parser = create_html_parser_with_content_type(monkeypatch, content_type)
+    assert parser.kw == {'encoding': 'wtf-123'}

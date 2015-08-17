@@ -134,9 +134,9 @@ class HTMLStream(object):
 
         # character set detection could go here
 
-        # the ultimate fallback
-        info = codecs.lookup('iso-8859-1')
-        yield info.name, info.incrementaldecoder()
+        # the ultimate fallback and we ignore errors
+        info = codecs.lookup('cp1252')
+        yield info.name, info.incrementaldecoder('replace')
 
     def next_encoding(self):
         self.response.seek(0)

@@ -5,7 +5,6 @@ import pytest
 from six import text_type
 from wex.response import Response
 from wex.htmlstream import HTMLStream
-from wex.etree import parse
 
 
 def stream_from_fixture(fixture):
@@ -58,3 +57,15 @@ def test_htmltream_next_encoding():
     s = stream.read()
     assert isinstance(s, text_type)
     assert s == '<meta charset="utf-8">\n<p>巨<p>\n'
+
+
+def test_htmlstream_default_encoding():
+    stream = stream_from_fixture('default')
+    # first default we try is utf-8
+    with pytest.raises(UnicodeDecodeError):
+        stream.read()
+    # finally we try cp1252 with errors='replace'
+    stream.next_encoding()
+    s = stream.read()
+    assert isinstance(s, text_type)
+    assert s == '<p>�®</p>\n'
