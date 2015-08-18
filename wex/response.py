@@ -90,8 +90,7 @@ class Response(addinfourl):
 
     @classmethod
     def content_file(cls, response_file, headers):
-        # content_file = SpooledTemporaryFile(max_size=MAX_IN_MEMORY_SIZE)
-        content_file = SpooledTemporaryFile(max_size=10)
+        content_file = SpooledTemporaryFile(max_size=MAX_IN_MEMORY_SIZE)
         copyfileobj(response_file, content_file)
         content_file.seek(0)
 
