@@ -1,5 +1,6 @@
 """ HTMLStream converts a byte stream in to a unicode stream for parsing. """
 
+from __future__ import unicode_literals, print_function
 import codecs
 from six.moves import map
 from lxml.etree import XMLSyntaxError
@@ -153,6 +154,7 @@ class HTMLStream(object):
             if size is None or len(self.decoded) >= size:
                 break
         decoded = self.decoded[:size]
+        print("DECODED: {!r}".format(decoded), self.decoder)
         self.decoded = self.decoded[len(decoded):]
         return decoded
 

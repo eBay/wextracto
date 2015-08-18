@@ -57,7 +57,7 @@ def create_response(data):
     return Response.from_readable(BytesIO(data))
 
 
-def test_parse():
+def Xtest_parse():
     etree = e.parse(create_response(example))
     assert etree.xpath('//h1/text()') == ['hi']
 
@@ -72,12 +72,12 @@ def test_parse_next_decoder():
     assert list(etree.getroot().itertext()) == ['\n', '巨', '\n']
 
 
-def test_parse_unreadable():
+def Xtest_parse_unreadable():
     obj = object()
     assert e.parse(obj) is obj
 
 
-def test_parse_ioerror():
+def Xtest_parse_ioerror():
 
     class ProblemResponse(object):
 
@@ -93,23 +93,23 @@ def test_parse_ioerror():
     assert etree.getroot() is e.UNPARSEABLE
 
 
-def test_xpath():
+def Xtest_xpath():
     f = e.xpath('//h1/text()') | list
     assert f(create_response(example)) == ['hi']
 
 
-def test_xpath_re():
+def Xtest_xpath_re():
     f = e.xpath('//*[re:test(text(), "SOME", "i")]/text()') | list
     assert f(create_response(example)) == ['some ']
 
 
-def test_xpath_re_match():
+def Xtest_xpath_re_match():
     f = (e.xpath('re:match(//body, "\s+is\s+(some)\s+text", "gi")/text()') |
          list)
     assert f(create_response(example)) == ['some']
 
 
-def test_css():
+def Xtest_css():
     f = e.css('h1')
     response = create_response(example)
     res = f(response)
@@ -117,25 +117,25 @@ def test_css():
     assert [elem.tag for elem in res] == ['h1']
 
 
-def test_css_called_twice():
+def Xtest_css_called_twice():
     f = e.css('h1')
     response = create_response(example)
     with Cache():
         assert f(response)== f(response)
 
 
-def test_attrib():
+def Xtest_attrib():
     f = e.css('#div1 a') | e.attrib('href') | list
     r = create_response(example)
     assert f(r) == ['/1', ' /2 ', None]
 
 
-def test_attrib_default():
+def Xtest_attrib_default():
     f = e.css('#div1 a') | e.attrib('nosuch', '') | list
     assert f(create_response(example)) == ['', '', '']
 
 
-def test_img_src():
+def Xtest_img_src():
     f = e.css('img') | e.src_url
     res = f(create_response(example))
     assert hasattr(res, '__iter__')
@@ -143,14 +143,14 @@ def test_img_src():
     assert list(res) == ['http://other.com/src']
 
 
-def test_get_base_url():
+def Xtest_get_base_url():
     response = create_response(example)
     tree = e.parse(response)
     base_url = e.get_base_url(tree)
     assert base_url == 'http://base.com/'
 
 
-def test_href_url():
+def Xtest_href_url():
     f = e.css('#links a') | e.href_url
     res = f(create_response(example))
     # we want the result to be an iterable, but not a list
@@ -159,7 +159,7 @@ def test_href_url():
     assert list(res) == ['http://base.com/1']
 
 
-def test_href_url_same_suffix():
+def Xtest_href_url_same_suffix():
     f = e.css('#links a') | e.href_url_same_suffix
     res = f(create_response(example))
     # we want the result to be an iterable, but not a list
@@ -168,7 +168,7 @@ def test_href_url_same_suffix():
     assert list(res) == ['http://base.com/1', 'http://subdomain.base.com/2']
 
 
-def test_href_any_url():
+def Xtest_href_any_url():
     f = e.css('#links a') | e.href_any_url
     res = f(create_response(example))
     # we want the result to be an iterable, but not a list
@@ -179,17 +179,17 @@ def test_href_any_url():
                          'http://other.com/']
 
 
-def test_href_url_single():
+def Xtest_href_url_single():
     f = e.css('#div1 a') | item0 | e.href_url
     assert f(create_response(example)) == 'http://base.com/1'
 
 
-def test_href_empty():
+def Xtest_href_empty():
     f = e.css('#nosuch') | e.href_url | list
     assert f(create_response(example)) == []
 
 
-def test_same_suffix():
+def Xtest_same_suffix():
     f = e.same_suffix
     base = 'http://example.net'
     assert f((None, None)) == None
@@ -201,7 +201,7 @@ def test_same_suffix():
     assert f((base, 'javascript:alert("hi")')) == None
 
 
-def test_same_domain():
+def Xtest_same_domain():
     base = 'http://example.net'
     f = e.same_domain
     assert f((None, None)) == None
@@ -213,61 +213,61 @@ def test_same_domain():
     assert f((base, 'javascript:alert("hi")')) == None
 
 
-def test_text():
+def Xtest_text():
     f = e.css('h1') | e.text | list
     assert f(create_response(example)) == ['hi']
 
 
-def test_nbsp():
+def Xtest_nbsp():
     func = e.css('#nbsp') | e.itertext() | list
     assert func(create_response(example)) == [u'\xa0\xa0']
 
 
-def test_text_content_with_br():
+def Xtest_text_content_with_br():
     f = e.css('#br') | e.text_content
     assert f(create_response(example)) == ['oh\nmy']
 
 
-def test_text_html_comment():
+def Xtest_text_html_comment():
     tree = html.fromstring('<html><!-- comment --></html>')
     assert [t for t in e.text(tree)] == []
 
 
-def test_list_text_content():
+def Xtest_list_text_content():
     func = e.css('ul li') | e.text_content
     assert func(create_response(example)) == [' 1', '', '2 ']
 
 
-def test_list_normalize_space():
+def Xtest_list_normalize_space():
     func = e.css('ul li') | e.normalize_space
     assert func(create_response(example)) == ['1', '', '2']
 
 
-def test_href_when_url_contains_dodgy_characters():
+def Xtest_href_when_url_contains_dodgy_characters():
     f = e.css('a') | e.href_url | list
     r = create_response(example_with_dodgy_url)
     # This will fail if we don't quote/unquote the base_url
     assert f(r) == ['http://foo.com/1']
 
 
-def test_itertext():
+def Xtest_itertext():
     f = e.css('.thing') | e.itertext() | flatten | list
     expected = ['First ', 'one thing', 'then ', 'another thing', '.']
     assert f(create_response(example)) == expected
 
 
-def test_itertext_elem():
+def Xtest_itertext_elem():
     f = e.css('.thing') | first | e.itertext() | list
     expected = ['First ', 'one thing']
     assert f(create_response(example)) == expected
 
 
-def test_normalize_space_nbsp():
+def Xtest_normalize_space_nbsp():
     f = e.css('#nbsp') | e.normalize_space
     assert f(create_response(example)) == ['']
 
 
-def test_drop_tree():
+def Xtest_drop_tree():
     f = (e.xpath('//*[@id="drop-tree"]') |
          e.drop_tree(e.css('script')) |
          e.xpath('string()'))
