@@ -1,5 +1,6 @@
 # coding=utf-8
 from __future__ import unicode_literals
+import codecs
 from pkg_resources import resource_stream
 import pytest
 from six import text_type
@@ -15,37 +16,53 @@ def stream_from_fixture(fixture):
     return stream
 
 
-def test_htmltream():
+def test_htmlstream():
     s = stream_from_fixture('ascii').read()
     assert isinstance(s, text_type)
     assert s == '<p>just ASCII</p>\n'
 
 
-def test_htmltream_unicode():
+def test_htmlstream_unicode():
     s = stream_from_fixture('utf-8').read()
     assert isinstance(s, text_type)
     assert s == '<p>©<p>\n'
 
 
-def test_htmltream_meta_charset():
+def test_htmlstream_utf8_bom():
+    stream = stream_from_fixture('utf-8-with-bom')
+    assert stream.bom == codecs.BOM_UTF8
+    s = stream.read()
+    assert isinstance(s, text_type)
+    assert s == '<p>©<p>\n'
+
+
+def test_htmlstream_utf16_le_bom():
+    stream = stream_from_fixture('utf-16-le-with-bom')
+    assert stream.bom == codecs.BOM_UTF16_LE
+    s = stream.read()
+    assert isinstance(s, text_type)
+    assert s == 'Hello'
+
+
+def test_htmlstream_meta_charset():
     s = stream_from_fixture('shift-jis-meta-charset').read()
     assert isinstance(s, text_type)
     assert s == '<meta charset="shift-jis">\n<p>巨<p>\n'
 
 
-def test_htmltream_meta_http_equiv():
+def test_htmlstream_meta_http_equiv():
     s = stream_from_fixture('shift-jis-meta-http-equiv').read()
     assert isinstance(s, text_type)
     assert s == '<meta http-equiv="content-type" content="text/html;charset=shift-jis">\n<p>巨<p>\n'  # flake8: noqa
 
 
-def test_htmltream_http_content_type():
+def test_htmlstream_http_content_type():
     s = stream_from_fixture('shift-jis-http-content-type').read()
     assert isinstance(s, text_type)
     assert s == '<meta charset="iso-8859-1">\n<p>巨<p>\n'
 
 
-def test_htmltream_next_encoding():
+def test_htmlstream_next_encoding():
     stream = stream_from_fixture('shift-jis-next-decoder')
     # HTMLStream likes the look of utf-8 in the <meta> charset
     # but the response is actually encoded in shift-jis so

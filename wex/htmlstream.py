@@ -1,6 +1,7 @@
 """ HTMLStream converts a byte stream in to a unicode stream for parsing. """
 
 import codecs
+from six import iteritems
 from lxml.etree import XMLSyntaxError
 from lxml.html import HTMLParser
 
@@ -72,6 +73,11 @@ ranking = {
 }
 
 
+BOM_ENC = {bom: codecs.lookup('UTF-' + attr[7:]).name
+           for attr, bom in iteritems(codecs.__dict__)
+           if attr.startswith('BOM_UTF')}
+
+
 def content_type_encodings(content_type):
     # note: we have found at least one example with two "charset=" params
     #       where one was good and one was bad.
@@ -86,19 +92,19 @@ def content_type_encodings(content_type):
 class HTMLStream(object):
 
     def __init__(self, response, filename=None):
+        self.bom = None
         self.filename = filename
         self.encodings = []
         self.response = response
         self.declared_encodings = self.find_declared_encodings()
         self.decoders = self.yield_decoders()
-        self.decoded = u''
-        self.encoding, self.decoder = next(self.decoders)
+        self.next_encoding()
 
     def find_declared_encodings(self):
         encodings = []
         content_type = self.response.headers.get('content-type', '')
         encodings.extend(content_type_encodings(content_type))
-        encodings.extend(self.parse_head())
+        encodings.extend(self.pre_parse())
         return encodings
 
     def ranked_encodings(self):
@@ -146,6 +152,7 @@ class HTMLStream(object):
         self.response.seek(0)
         self.decoded = u''
         self.encoding, self.decoder = next(self.decoders)
+        self.strip_bom = (self.bom and self.encoding == 'utf-8')
 
     def read(self, size=None):
         while True:
@@ -154,6 +161,9 @@ class HTMLStream(object):
                 # tell the decoder to flush
                 self.decoded += self.decoder.decode(raw_bytes, True)
                 break
+            if self.strip_bom:
+                self.strip_bom = False
+                raw_bytes = raw_bytes[len(self.bom):]
             self.decoded += self.decoder.decode(raw_bytes)
             if size is None or len(self.decoded) >= size:
                 break
@@ -161,7 +171,7 @@ class HTMLStream(object):
         self.decoded = self.decoded[len(decoded):]
         return decoded
 
-    def parse_head(self):
+    def pre_parse(self):
         meta = HTMLMetaEncodings()
         # parser will fail on non-ascii unless we set it explicitly
         parser = HTMLParser(target=meta, encoding='ISO-8859-1')
@@ -175,12 +185,24 @@ class HTMLStream(object):
                 except XMLSyntaxError:
                     pass
                 break
+            if self.bom is None:
+                assert PRE_PARSE_CHUNK_SIZE >= 4
+                self.bom = b''
+                for i in range(4, 1, -1):
+                    if chunk[:i] in BOM_ENC:
+                        self.bom = chunk[:i]
+                        # no BOM is a prefix of another BOM
+                        break
             parser.feed(chunk)
             total_bytes += len(chunk)
             if total_bytes >= MAX_PRE_PARSE_BYTES:
                 break
         self.response.seek(0)
-        return meta.encodings
+        encodings = []
+        if self.bom:
+            encodings.append(BOM_ENC[self.bom])
+        encodings.extend(meta.encodings)
+        return encodings
 
 
 class HTMLMetaEncodings(object):
