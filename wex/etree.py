@@ -81,9 +81,12 @@ def parse(src):
     if not hasattr(src, 'read'):
         return src
 
+    import sys
+
     etree = _ElementTree()
     try:
         stream = HTMLStream(src)
+        print ("wex.etree.parse", stream.declared_encodings, file=sys.stderr)
         # Sometimes we get URLs containing characters that aren't
         # acceptable to lxml (e.g. "http:/foo.com/bar?this=array[]").
         # When this happens lxml will quote the whole URL.
@@ -95,10 +98,11 @@ def parse(src):
                 parser = HTMLParser()
                 fp = replace_invalid_ncr(stream)
                 etree.parse(fp, parser=parser, base_url=quoted_base_url)
+                print ("wex.etree.parsed :)", stream.encoding, file=sys.stderr)
                 break
-            except UnicodeDecodeError:
+            except UnicodeDecodeError as exc:
+                print ("wex.etree.parse!", exc, stream.encoding, file=sys.stderr)
                 stream.next_encoding()
-                #etree = _ElementTree()
     except IOError as exc:
         logger = logging.getLogger(__name__)
         logger.warning("IOError parsing %s (%s)", src.url, exc)

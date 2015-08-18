@@ -1,7 +1,7 @@
 """ HTMLStream converts a byte stream in to a unicode stream for parsing. """
 
 import codecs
-from six import iteritems
+from six.moves import map
 from lxml.etree import XMLSyntaxError
 from lxml.html import HTMLParser
 
@@ -73,20 +73,13 @@ ranking = {
 }
 
 
-BOM_ENC = {bom: codecs.lookup('UTF-' + attr[7:]).name
-           for attr, bom in iteritems(codecs.__dict__)
-           if attr.startswith('BOM_UTF')}
-
-
-def content_type_encodings(content_type):
-    # note: we have found at least one example with two "charset=" params
-    #       where one was good and one was bad.
-    #       HTTPMessage.get_content_charset() just takes the
-    #       first, but actually we might as well try them all.
-    for param in content_type.split(';')[1:]:
-        key, _, value = param.partition('=')
-        if key.strip().lower() == 'charset':
-            yield value.strip()
+BOM_ENC = {
+    codecs.BOM_UTF8: codecs.lookup('utf-8').name,
+    codecs.BOM_UTF16_BE: codecs.lookup('utf-16-be').name,
+    codecs.BOM_UTF16_LE: codecs.lookup('utf-16-le').name,
+    codecs.BOM_UTF32_BE: codecs.lookup('utf-32-be').name,
+    codecs.BOM_UTF32_LE: codecs.lookup('utf-32-le').name,
+}
 
 
 class HTMLStream(object):
@@ -96,16 +89,9 @@ class HTMLStream(object):
         self.filename = filename
         self.encodings = []
         self.response = response
-        self.declared_encodings = self.find_declared_encodings()
+        self.declared_encodings = self.pre_parse()
         self.decoders = self.yield_decoders()
         self.next_encoding()
-
-    def find_declared_encodings(self):
-        encodings = []
-        content_type = self.response.headers.get('content-type', '')
-        encodings.extend(content_type_encodings(content_type))
-        encodings.extend(self.pre_parse())
-        return encodings
 
     def ranked_encodings(self):
         """ Declared encodings ranked by order of resistance to errors. """
@@ -116,15 +102,14 @@ class HTMLStream(object):
             except LookupError:
                 return None
 
-        normalized = filter(None,
-                            (lookup(enc) for enc in self.declared_encodings))
+        encodings = (encoding for label, encoding in self.declared_encodings)
+        normalized = set(filter(None, map(lookup, encodings)))
 
-        # of the declared encodings we want to try the most resilient to
-        # errors first.
-        ranked = sorted(normalized,
-                        key=lambda enc: ranking.get(enc, 0),
-                        reverse=True)
-        return ranked
+        def key(enc):
+            return ranking.get(enc, 0)
+
+        # we want to try the most resilient encodings first
+        return sorted(normalized, key=key, reverse=True)
 
     def yield_decoders(self):
 
@@ -152,7 +137,7 @@ class HTMLStream(object):
         self.response.seek(0)
         self.decoded = u''
         self.encoding, self.decoder = next(self.decoders)
-        self.strip_bom = (self.bom and self.encoding == 'utf-8')
+        self.strip_bom = self.bom
 
     def read(self, size=None):
         while True:
@@ -172,12 +157,14 @@ class HTMLStream(object):
         return decoded
 
     def pre_parse(self):
-        meta = HTMLMetaEncodings()
+
+        http_content_type = self.response.headers.get('content-type', '')
+        target = HTMLEncodings(http_content_type)
         # parser will fail on non-ascii unless we set it explicitly
-        parser = HTMLParser(target=meta, encoding='ISO-8859-1')
-        meta.parser = parser
+        parser = HTMLParser(target=target, encoding='ISO-8859-1')
         total_bytes = 0
-        while meta:
+
+        while target:
             chunk = self.response.read(PRE_PARSE_CHUNK_SIZE)
             if not chunk:
                 try:
@@ -185,34 +172,44 @@ class HTMLStream(object):
                 except XMLSyntaxError:
                     pass
                 break
+
             if self.bom is None:
                 assert PRE_PARSE_CHUNK_SIZE >= 4
                 self.bom = b''
                 for i in range(4, 1, -1):
                     if chunk[:i] in BOM_ENC:
                         self.bom = chunk[:i]
-                        # no BOM is a prefix of another BOM
+                        target.encodings.append(('bom', BOM_ENC[self.bom]))
+                        # the can only be one BOM - stop here
                         break
+
             parser.feed(chunk)
             total_bytes += len(chunk)
             if total_bytes >= MAX_PRE_PARSE_BYTES:
                 break
-        self.response.seek(0)
-        encodings = []
-        if self.bom:
-            encodings.append(BOM_ENC[self.bom])
-        encodings.extend(meta.encodings)
-        return encodings
+
+        return target.encodings
 
 
-class HTMLMetaEncodings(object):
+class HTMLEncodings(object):
 
-    def __init__(self):
+    def __init__(self, http_content_type):
         self.encodings = []
+        self.parse_content_type(http_content_type, 'http-content-type')
         self.more = True
 
     def __bool__(self):
         return self.more
+
+    def parse_content_type(self, content_type, label):
+        # note: we have found at least one example with two "charset=" params
+        #       where one was good and one was bad.
+        #       HTTPMessage.get_content_charset() just takes the
+        #       first, but actually we might as well try them all.
+        for param in content_type.split(';')[1:]:
+            key, _, value = param.partition('=')
+            if key.strip().lower() == 'charset':
+                self.encodings.append((label, value.strip()))
 
     def start(self, tag, attrib):
         if tag not in HEAD_TAGS:
@@ -220,10 +217,10 @@ class HTMLMetaEncodings(object):
             self.more = False
         elif tag == 'meta':
             if 'charset' in attrib:
-                self.encodings.append(attrib['charset'])
+                self.encodings.append(('meta-charset', attrib['charset']))
             elif attrib.get('http-equiv', '').lower() == 'content-type':
                 content_type = attrib.get('content', '')
-                self.encodings.extend(content_type_encodings(content_type))
+                self.parse_content_type(content_type, 'meta-content-type')
 
     def close(self):
         pass
