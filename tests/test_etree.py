@@ -69,7 +69,7 @@ def test_parse_next_decoder():
     response = Response.from_readable(readable)
     # here the parse function will try utf-8 and then shift-jis
     etree = e.parse(response)
-    assert etree.xpath('//p/text()') == ['巨', '\n']
+    assert list(etree.getroot().itertext()) == ['\n', '巨', '\n']
 
 
 def test_parse_unreadable():
