@@ -1,56 +1,57 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from six import BytesIO
+from io import StringIO
 from wex import ncr
 
-script = b"""
+script = """
 <script src="/foo">
     var my_html = "</p>";
     var x = "&#x95;":
 </script>
 """
 
+
 def test_end_char_ref():
-    assert ncr.end_char_ref.search(b'#123;').group(1) == b'123'
+    assert ncr.end_char_ref.search('#123;').group(1) == '123'
 
 
 def test_end_char_ref_entity():
-    assert ncr.end_char_ref.search(b'amp;').group(1) == None
+    assert ncr.end_char_ref.search('amp;').group(1) is None
 
 
 def test_clean_ncr():
-    assert ncr.clean_ncr(b'&#x95;', True) == (b"&#x2022;", b'', None)
+    assert ncr.clean_ncr('&#x95;', True) == ("&#x2022;", '', None)
 
 
 def test_clean_ncr_script_cdata():
-    assert ncr.clean_ncr(script, True) == (script, b'', None)
+    assert ncr.clean_ncr(script, True) == (script, '', None)
 
 
 def test_clean_ncr_partial_script():
-    html = script[:script.find(b'</')]
-    assert ncr.clean_ncr(html, True) == (html, b'', b'script')
+    html = script[:script.find('</')]
+    assert ncr.clean_ncr(html, True) == (html, '', 'script')
 
 
 def test_ncr():
-    content = ncr.InvalidNumCharRefReplacer(BytesIO(b"&#x95;"))
-    assert content.read() == b"&#x2022;"
+    content = ncr.InvalidNumCharRefReplacer(StringIO("&#x95;"))
+    assert content.read() == "&#x2022;"
 
 
 def test_ncr_decimal():
-    content = ncr.InvalidNumCharRefReplacer(BytesIO(b"&#149;"))
-    assert content.read() == b"&#x2022;"
+    content = ncr.InvalidNumCharRefReplacer(StringIO("&#149;"))
+    assert content.read() == "&#x2022;"
 
 
 def test_ncr_empty():
-    content = ncr.InvalidNumCharRefReplacer(BytesIO(b"&#;"))
-    assert content.read() == b"&#;"
+    content = ncr.InvalidNumCharRefReplacer(StringIO("&#;"))
+    assert content.read() == "&#;"
 
 
 def test_ncr_script():
-    content = ncr.InvalidNumCharRefReplacer(BytesIO(script))
+    content = ncr.InvalidNumCharRefReplacer(StringIO(script))
     assert content.read() == script
 
 
 def test_ncr_no_semi_colon_terminated():
-    content = ncr.InvalidNumCharRefReplacer(BytesIO(b'&#x95,45'))
-    assert content.read() == b"&#x2022,45"
+    content = ncr.InvalidNumCharRefReplacer(StringIO('&#x95,45'))
+    assert content.read() == "&#x2022,45"

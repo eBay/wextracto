@@ -1,13 +1,28 @@
+import codecs
 import requests
 from six import iteritems
 from six import BytesIO
 from six.moves.urllib_parse import urljoin
-from lxml.html import _nons
+from lxml.html import _nons, HTMLParser
 from .py2compat import parse_headers
 from .iterable import one
 from .http import timeout, readable_from_response, merge_setting
-from .etree import create_html_parser, get_base_url
+from .etree import get_base_url
 from .response import Response
+
+
+def create_html_parser(headers):
+
+    charset = headers.get_content_charset()
+    try:
+        if charset and codecs.lookup(charset).name == 'iso8859-1':
+            charset = 'windows-1252'
+    except LookupError:
+        pass
+
+    # if charset is not specified in the Content-Type, this will be
+    # None ; encoding=None produces default (ISO 8859-1) behavior.
+    return HTMLParser(encoding=charset)
 
 
 class ParserReadable(object):
@@ -20,7 +35,6 @@ class ParserReadable(object):
         self.headers = None
         self.parser = None
         self.root = None
-
 
     @classmethod
     def from_response(cls, response, url, decode_content, context):

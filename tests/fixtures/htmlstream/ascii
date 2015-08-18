@@ -1,0 +1,4 @@
+HTTP/1.1 200 OK
+X-wex-request-url: http://example.net/ascii
+
+<p>just ASCII</p>

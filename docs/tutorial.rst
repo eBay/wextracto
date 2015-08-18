@@ -84,9 +84,8 @@ Now re-run ``wex`` with the same URL we used previously:
 
 You may be wondering about the square brackets around the text.  That is 
 because ``wex`` serializes values using 
-`JSON <http://en.wikipedia.org/wiki/JSON>`_.  
-Our XPath expression returns a Python list which gives us the square brackets
-in JSON.
+`JSON <http://en.wikipedia.org/wiki/JSON>`_ and our `XPath` expression
+returns a list.
 
 You may also have noticed the leading and trailing whitespace.  We'll look
 at how to get rid of that in the next section.
@@ -95,9 +94,9 @@ at how to get rid of that in the next section.
 Extracting Text
 ~~~~~~~~~~~~~~~
 
-We normally want text we extract HTML elements to be space-normalized.
+We normally want the text we extract to be space-normalized.
 This means runs of whitespace are converted into a single space 
-character and leading and trailing whitespace is trimmed.
+character and leading and trailing whitespace are trimmed.
 
 Wextracto provides the :func:`text <wex.etree.text>` function to return 
 the space-normalized text for each selected element.
@@ -115,22 +114,20 @@ Let's run ``wex`` with the usual URL again to check the result:
 
 That is much tidier.
 
-You may be wondering why we don't just use the XPath
+If you know `XPath` you may be wondering why we don't use the
 `normalize-space <https://developer.mozilla.org/en-US/docs/Web/XPath/Functions/normalize-space>`_
-function.  There actually several reasons why we do not want to do this, most of which are specific to extracting text from HTML as opposed to XML:
-
-The :func:`text <wex.etree.text>` function:
-   * understands `<br>` tags
+function.  There actually several reasons.  The :func:`text <wex.etree.text>` function:
+   * converts `<br>` tags to newlines which is what you want when handling HTML
    * uses a unicode definition of whitespace (e.g. non breaking spaces)
-   * can work with multiple nodes in an node-set
+   * can work with multiple nodes in an node-set (`lxml` supports `XPath` 1.0)
 
 .. _multiple-values:
 
 Multiple Values
 ~~~~~~~~~~~~~~~
 
-Often we want to extract multiple values from our web page.  This is done by 
-`yield`-ing values instead `return`-ing a single value.
+We normally want to extract more than one value from a web page.  `Wextracto`
+allows extractor functions to `yield` multiple values.
 
 So that we know which value is which we also label the values by yielding
 a name for the value at the same time.

@@ -1,11 +1,18 @@
+# coding=utf-8
 from __future__ import unicode_literals, print_function
+import os
+from operator import itemgetter
+import pytest
+from pkg_resources import resource_stream
 from six import BytesIO
 from lxml import html
-from operator import itemgetter
 from wex.cache import Cache
 from wex.response import Response, parse_headers
 from wex import etree as e
 from wex.iterable import first, flatten
+
+skipif_travis_ci = pytest.mark.skipif(len(os.environ.get('TRAVIS_CI', '')),
+                                      reason="mysterious parse failure")
 
 example = b"""HTTP/1.1 200 OK
 X-wex-request-url: http://some.com/
@@ -55,32 +62,20 @@ def create_response(data):
     return Response.from_readable(BytesIO(data))
 
 
-def create_html_parser(monkeypatch, content_type):
-    class HTMLParser(object):
-        def __init__(self, **kw):
-            self.kw = kw
-    monkeypatch.setattr(e, 'HTMLParser', HTMLParser)
-    lines = [content_type, b'', b'']
-    CRLF = b'\r\n'
-    headers = parse_headers(BytesIO(CRLF.join(lines)))
-    return e.create_html_parser(headers)
-
-
-def test_create_html_parser(monkeypatch):
-    content_type = b'Content-Type:text/html;charset=ISO8859-1'
-    parser = create_html_parser(monkeypatch, content_type)
-    assert parser.kw == {'encoding': 'windows-1252'}
-
-
-def test_create_html_parser_charset_lookup_error(monkeypatch):
-    content_type = b'Content-Type:text/html;charset=wtf-123'
-    parser = create_html_parser(monkeypatch, content_type)
-    assert parser.kw == {'encoding': 'wtf-123'}
-
-
 def test_parse():
     etree = e.parse(create_response(example))
     assert etree.xpath('//h1/text()') == ['hi']
+
+
+@skipif_travis_ci
+def test_parse_next_decoder():
+    # borrow a fixture from htmlstream
+    resource = 'fixtures/htmlstream/shift-jis-next-decoder'
+    readable = resource_stream(__name__, resource)
+    response = Response.from_readable(readable)
+    # here the parse function will try utf-8 and then shift-jis
+    etree = e.parse(response)
+    assert list(etree.getroot().itertext()) == ['\n', '巨', '\n']
 
 
 def test_parse_unreadable():
@@ -89,12 +84,16 @@ def test_parse_unreadable():
 
 
 def test_parse_ioerror():
+
     class ProblemResponse(object):
+
         def __init__(self):
             self.headers = parse_headers(BytesIO())
             self.url = None
+
         def read(self, *args):
             raise IOError
+
     response = ProblemResponse()
     etree = e.parse(response)
     assert etree.getroot() is e.UNPARSEABLE
@@ -128,7 +127,7 @@ def test_css_called_twice():
     f = e.css('h1')
     response = create_response(example)
     with Cache():
-        assert f(response)== f(response)
+        assert f(response) == f(response)
 
 
 def test_attrib():
@@ -199,25 +198,25 @@ def test_href_empty():
 def test_same_suffix():
     f = e.same_suffix
     base = 'http://example.net'
-    assert f((None, None)) == None
-    assert f(('', None)) == None
-    assert f(('com', None)) == None
-    assert f((base, None)) == None
+    assert f((None, None)) is None
+    assert f(('', None)) is None
+    assert f(('com', None)) is None
+    assert f((base, None)) is None
     assert f((base, 'http://example.net')) == 'http://example.net'
     assert f((base, 'http://www.example.net')) == 'http://www.example.net'
-    assert f((base, 'javascript:alert("hi")')) == None
+    assert f((base, 'javascript:alert("hi")')) is None
 
 
 def test_same_domain():
     base = 'http://example.net'
     f = e.same_domain
-    assert f((None, None)) == None
-    assert f(('', None)) == None
-    assert f(('com', None)) == None
-    assert f((base, None)) == None
+    assert f((None, None)) is None
+    assert f(('', None)) is None
+    assert f(('com', None)) is None
+    assert f((base, None)) is None
     assert f((base, 'http://example.net')) == 'http://example.net'
-    assert f((base, 'http://www.example.net')) == None
-    assert f((base, 'javascript:alert("hi")')) == None
+    assert f((base, 'http://www.example.net')) is None
+    assert f((base, 'javascript:alert("hi")')) is None
 
 
 def test_text():

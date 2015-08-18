@@ -12,7 +12,7 @@ setup(
     author='Giles Brown',
     author_email='gsbrown@ebay.com',
     url='https://github.com/eBay/wextracto',
-    download_url = 'https://github.com/eBay/wextracto/tarball/' + __version__,
+    download_url='https://github.com/eBay/wextracto/tarball/' + __version__,
     license='BSD',
     include_package_data=True,
     packages=['wex'],
@@ -26,7 +26,7 @@ setup(
         'requests',
         'lxml>=3',
         'cssselect',
-        'publicsuffix',
+        'publicsuffix>=1.1',
     ],
     classifiers=(
         'Development Status :: 4 - Beta',

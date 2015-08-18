@@ -12,17 +12,16 @@ from six.moves.urllib_parse import (urlparse,
                                     parse_qs,
                                     parse_qsl,
                                     urlencode,
-                                    unquote,
-                                    quote)
+                                    unquote)
 from pkg_resources import iter_entry_points
 from publicsuffix import PublicSuffixList
 
+from .py2compat import urlquote
 from .composed import composable
 from .iterable import map_if_iter
 from .value import encode_json
 
 logger = logging.getLogger(__name__)
-
 
 
 DEFAULT_METHOD = 'get'
@@ -66,7 +65,8 @@ class Method(object):
         try:
             ep = next(entry_points)
         except StopIteration:
-            raise ValueError("Missing method '%s' in '%s'" % (self.name, self.group))
+            raise ValueError("Missing method '%s' in '%s'" %
+                             (self.name, self.group))
         method = ep.load()
         return method(url, self, **kw)
 
@@ -109,7 +109,8 @@ class URL(text_type):
         fragment_dict = dict(self.fragment_dict)
         fragment_dict.update(kw)
         fragment = encode_json(fragment_dict)
-        return self.__class__(urlunparse(self.parsed._replace(fragment=fragment)))
+        replaced = self.parsed._replace(fragment=fragment)
+        return self.__class__(urlunparse(replaced))
 
     @property
     def method(self):
@@ -144,37 +145,18 @@ class URL(text_type):
         encoded = self.encode('utf-8')
         hexdigest = md5(encoded).hexdigest()
         names = [self.parsed.scheme, self.parsed.netloc]
-        names.extend(self.parsed.path.split('/'))
+        names.extend(filter(None, self.parsed.path.split('/')))
         if self.parsed.query:
             names.extend(self.parsed.query.split('&'))
         names.append(hexdigest)
-        return [quote(name, safe='')[:PC_NAME_MAX] for name in names]
-
+        return [urlquote(name, safe='')[:PC_NAME_MAX] for name in names]
 
 
 #
 # URL related composable helpers
-#============================================================
+# ============================================================
 
-
-# Work-around for:
-# https://bitbucket.org/pypa/wheel/issue/120
-def open_publicsuffix_txt():
-    import sys
-    import codecs
-    from pkg_resources import resource_filename
-
-    basename = 'publicsuffix.txt'
-    paths = [resource_filename('publicsuffix', basename),
-             # for some reason wheel installation puts the file here
-             os.path.join(sys.prefix, basename)]
-
-    for path in paths:
-        if os.path.exists(path):
-            return codecs.open(path, 'r', 'utf-8')
-
-
-public_suffix_list = PublicSuffixList(open_publicsuffix_txt())
+public_suffix_list = PublicSuffixList()
 
 
 @composable
@@ -188,6 +170,7 @@ url_path = parse_url | map_if_iter(attrgetter('path'))
 url_hostname = parse_url | map_if_iter(attrgetter('hostname'))
 url_query_dict = url_query | map_if_iter(parse_qs)
 url_query_list = url_query | map_if_iter(parse_qsl)
+
 
 def url_query_param(name, default=[]):
     return url_query_dict | map_if_iter(methodcaller('get', name, default))

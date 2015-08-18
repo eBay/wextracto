@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.7.9 (2015-08-18)
+++++++++++++++++++
+
+  * Re-worked encoding for HTML to pre-parse
+
+
 0.7 (2015-06-04)
 ++++++++++++++++++
 

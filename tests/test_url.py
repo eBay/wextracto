@@ -75,6 +75,22 @@ def test_url_get_missing_recipe():
         URL('http://httpbin.org/robots.txt#{"method":"whoops"}').get()
 
 
+def test_dirnames():
+    url = URL('http://example.net/foo?q=v')
+    expected_dirnames = ['http', 'example.net', 'foo', 'q%3Dv',
+                         '97449b4c8efcdabdfeed82f5cffb09c2']
+    assert url.dirnames() == expected_dirnames
+
+
+def test_dirnames_unicode():
+    url = URL(u'http://example.net/m\xf3vil')
+    expected_dirnames = ['http',
+                         'example.net',
+                         'm%C3%B3vil',
+                         '8ca739c73e33e28ec0764a1d987b6a71']
+    assert url.dirnames() == expected_dirnames
+
+
 url1 = 'http://www.foo.com/g?this=1&that=2'
 url1_parsed = ('http', 'www.foo.com', '/g', '', 'this=1&that=2', '')
 

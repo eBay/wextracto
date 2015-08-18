@@ -1,7 +1,6 @@
 from __future__ import unicode_literals, print_function, absolute_import
-from tempfile import TemporaryFile
+from tempfile import SpooledTemporaryFile as SpooledTemporaryFile_
 from shutil import copyfileobj
-from io import BytesIO
 from six.moves.urllib.response import addinfourl
 from six.moves.http_client import BadStatusLine
 from .py2compat import parse_headers
@@ -14,9 +13,8 @@ DEFAULT_READ_SIZE = 2**16  # 64K
 MAX_IN_MEMORY_SIZE = 2**29      # 512M
 
 
-
 class Response(addinfourl):
-    """ A urllib2 style Response with some extras. 
+    """ A urllib2 style Response with some extras.
 
         :param content: A file-like object containing the response content.
         :param headers: An HTTPMessage containing the response headers.
@@ -61,12 +59,14 @@ class Response(addinfourl):
         request_url = headers.get('X-wex-request-url')
         url = headers.get('X-wex-url', request_url)
         content = cls.content_file(readable, headers)
-        return Response(content, headers, url,
-                                          code=code,
-                                          protocol=protocol.decode('UTF-8'),
-                                          version=version,
-                                          reason=reason.decode('UTF-8'),
-                                          request_url=request_url)
+        return Response(content,
+                        headers,
+                        url,
+                        code=code,
+                        protocol=protocol.decode('UTF-8'),
+                        version=version,
+                        reason=reason.decode('UTF-8'),
+                        request_url=request_url)
 
     @staticmethod
     def parse_status_line(status_line, field_defaults=['']*3):
@@ -90,28 +90,19 @@ class Response(addinfourl):
 
     @classmethod
     def content_file(cls, response_file, headers):
-        try:
-            content_length = int(headers.get('content-length', 0))
-        except ValueError:
-            content_length = 0
-
-        size_with_content_length = min(content_length + 1, MAX_IN_MEMORY_SIZE)
-        read_size = max(size_with_content_length, DEFAULT_READ_SIZE)
-        buf = response_file.read(read_size)
-        if len(buf) < read_size:
-            # We've managed to read all the content in one go
-            content_file = BytesIO(buf)
-        else:
-            content_file = TemporaryFile()
-            content_file.write(buf)
-            copyfileobj(response_file, content_file)
-            content_file.seek(0)
+        content_file = SpooledTemporaryFile(max_size=MAX_IN_MEMORY_SIZE)
+        copyfileobj(response_file, content_file)
+        content_file.seek(0)
 
         return content_file
+
+
+class SpooledTemporaryFile(SpooledTemporaryFile_):
+    def read(self, size=None):
+        return self._file.read() if size is None else self._file.read(size)
 
 
 # Response supports __iter__ because that is normal for file-like objects
 # but by default we don't want respones to be iterated when flattening or
 # when composable helpers are trying to work out whether to map or not.
 _do_not_iter_append(Response)
-

@@ -101,10 +101,11 @@ def yield_values(extract, *args, **kw):
     if any(exc_info) and (Value.exit_on_exc or Value.debug_on_exc):
         if Value.debug_on_exc:
             import traceback
-            try: 
+            try:
                 import ipdb as pdb
             except ImportError:
                 import pdb
+                assert pdb
             traceback.print_tb(exc_info[2])
             pdb.post_mortem(exc_info[2])
         else:
