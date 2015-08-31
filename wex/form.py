@@ -61,7 +61,8 @@ class ParserReadable(object):
     def readline(self, *args):
         line = self.readable.readline(*args)
         if not self.lines:
-            _, _, self.code, _ = Response.parse_status_line(line)
+            _, _, self.code, _ = Response.parse_status_line(self.readable,
+                                                            line)
         self.lines.append(line)
         if not line.strip():
             self.headers = parse_headers(BytesIO(b''.join(self.lines[1:])))
