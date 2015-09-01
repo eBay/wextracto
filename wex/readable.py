@@ -63,15 +63,16 @@ _open_tarfile.tarfile = None
 
 
 def tarfile_open(path):
-    if getattr(_open_tarfile, 'tarfile', None) is not None:
-        if _open_tarfile.tarfile.name == path:
+    tarfileobj = getattr(_open_tarfile, 'tarfile', None)
+    if tarfileobj is not None:
+        if tarfileobj.name == path and not tarfileobj.closed:
             # same tarfile - no need to re-open
-            return _open_tarfile.tarfile
+            return tarfileobj
         # there shouldn't be any problem closing this
         # because the fact that we have been asked to
         # open another tarfile will always mean that this
         # process has moved on to a different file.
-        _open_tarfile.tarfile.close()
+        tarfileobj.close()
 
     _open_tarfile.tarfile = tarfile.open(path, 'r')
     return _open_tarfile.tarfile
