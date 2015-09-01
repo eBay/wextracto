@@ -44,9 +44,9 @@ if six.PY2:
             raise tarfile.CompressionError("lzma module is not available")
 
         try:
-            fileobj = lzma.LZMAFile(name, mode)
-        except OSError:
-            if fileobj is not None and mode == 'r':
+            fileobj = lzma.LZMAFile(fileobj or name, mode)
+        except (OSError, IOError):
+            if mode == 'r':
                 raise tarfile.ReadError("not an lzma file")
             raise
 

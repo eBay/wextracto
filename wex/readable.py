@@ -7,6 +7,7 @@ They are used to to create `Response` objects using `Response.from_readable`.
 
 from __future__ import absolute_import, unicode_literals, print_function
 import os
+import errno
 import sys
 import tarfile
 from io import FileIO
@@ -14,6 +15,7 @@ from threading import local
 from functools import partial as partial_
 from contextlib import closing
 from six import PY2
+from . import py2compat  # flake8: noqa
 from .url import URL
 
 
@@ -61,7 +63,7 @@ _open_tarfile.tarfile = None
 
 
 def tarfile_open(path):
-    if _open_tarfile.tarfile is not None:
+    if getattr(_open_tarfile, 'tarfile', None) is not None:
         if _open_tarfile.tarfile.name == path:
             # same tarfile - no need to re-open
             return _open_tarfile.tarfile
@@ -130,9 +132,15 @@ def readables_from_file_path(path):
             yield Open(partial(FileIO, path))
         else:
             try:
-                tf = tarfile.open(path, 'r')
+                tf = tarfile_open(path)
                 for readable in readables_from_tarfile(tf):
                     yield readable
+            except IOError as exc:
+                if exc.errno != errno.ENOENT:
+                    raise
+                # we want to defer the ENOENT error to later
+                # so we do that by yielding an Open(...)
+                yield Open(partial(FileIO, path))
             except tarfile.ReadError:
                 yield Open(partial(FileIO, path))
 
