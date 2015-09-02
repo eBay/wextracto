@@ -61,6 +61,7 @@ def request_using_phantomjs(url, method, session=None, **kw):
         "loglevel": logging.getLogger(__name__).getEffectiveLevel(),
         "context": kw.get("context", {}),
         "proxy": proxy,
+        "args": method.args,
     }
     dumped = json.dumps(request)
     if not isinstance(dumped, binary_type):

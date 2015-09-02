@@ -7,6 +7,7 @@ They are used to to create `Response` objects using `Response.from_readable`.
 
 from __future__ import absolute_import, unicode_literals, print_function
 import os
+import errno
 import sys
 import tarfile
 from io import FileIO
@@ -14,11 +15,13 @@ from threading import local
 from functools import partial as partial_
 from contextlib import closing
 from six import PY2
+from . import py2compat  # flake8: noqa
 from .url import URL
 
 
 EXT_WEXIN = '.wexin'
 LF = b'\n'
+
 
 class partial(partial_):
     def __repr__(self):
@@ -27,7 +30,13 @@ class partial(partial_):
 
 
 class Open(object):
-    """ Open a readable, when asked for read/readline. """
+    """ Lazily open a readable, when asked for read/readline.
+
+    The reason we want to lazily open the readable is because
+    that makes this object pickleable in its pre-opened state
+    and that allows us to send the readable into a
+    `multiprocessing.Pool`.
+    """
 
     def __init__(self, open):
         self.open = open
@@ -52,16 +61,19 @@ class Open(object):
 _open_tarfile = local()
 _open_tarfile.tarfile = None
 
+
 def tarfile_open(path):
-    if _open_tarfile.tarfile is not None:
-        if _open_tarfile.tarfile.name == path:
+    tarfileobj = getattr(_open_tarfile, 'tarfile', None)
+    if tarfileobj is not None:
+        if tarfileobj.name == path and not tarfileobj.closed:
             # same tarfile - no need to re-open
-            return _open_tarfile.tarfile
+            return tarfileobj
         # there shouldn't be any problem closing this
         # because the fact that we have been asked to
         # open another tarfile will always mean that this
         # process has moved on to a different file.
-        _open_tarfile.tarfile.close()
+        tarfileobj.close()
+
     _open_tarfile.tarfile = tarfile.open(path, 'r')
     return _open_tarfile.tarfile
 
@@ -69,7 +81,6 @@ def tarfile_open(path):
 def tarfile_tarinfo_open(path, tarinfo):
     tf = tarfile_open(path)
     return tf.extractfile(tarinfo)
-
 
 
 def readables_from_paths(paths, save_dir=None):
@@ -106,6 +117,7 @@ def save_readables(url, save_dir, readables):
 
 def readables_from_file_path(path):
     """ Yield readables from a file system path """
+
     numdirs = 0
     for dirpath, dirnames, filenames in os.walk(path):
         numdirs += 1
@@ -115,14 +127,29 @@ def readables_from_file_path(path):
             if filename.lower().endswith(EXT_WEXIN):
                 filepath = os.path.join(dirpath, filename)
                 yield Open(partial(FileIO, filepath))
+
     if numdirs < 1:
-        if path.endswith('.tar'):
-            tf = tarfile.open(path, 'r')
-            for ti in tf:
-                if ti.name.endswith(EXT_WEXIN):
-                    yield Open(partial(tarfile_tarinfo_open, path, ti))
-        else:
+        if path.lower().endswith('EXT_WEXIN'):
             yield Open(partial(FileIO, path))
+        else:
+            try:
+                tf = tarfile_open(path)
+                for readable in readables_from_tarfile(tf):
+                    yield readable
+            except IOError as exc:
+                if exc.errno != errno.ENOENT:
+                    raise
+                # we want to defer the ENOENT error to later
+                # so we do that by yielding an Open(...)
+                yield Open(partial(FileIO, path))
+            except tarfile.ReadError:
+                yield Open(partial(FileIO, path))
+
+
+def readables_from_tarfile(tf):
+    for ti in tf:
+        if ti.name.endswith(EXT_WEXIN):
+            yield Open(partial(tarfile_tarinfo_open, tf.name, ti))
 
 
 class TeeReadable(object):

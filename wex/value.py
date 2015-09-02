@@ -20,15 +20,17 @@ And we could decode this line with the following Python snippet:
 Using tab-delimiters is convenient for downstream processing using Unix 
 command line tools such as :command:`cut` and :command:`grep`.
 """
-from __future__ import print_function
+from __future__ import unicode_literals, print_function
 import sys
 import json
+import logging
 from itertools import product
 from operator import itemgetter
-from six import PY2, text_type, reraise
+from six import PY2, binary_type, text_type, reraise
 from six.moves import map
-import logging; logger = logging.getLogger(__name__)
 from .iterable import walk, flatten, do_not_iter
+
+logger = logging.getLogger(__name__)
 
 TAB = '\t'
 NL = '\n'
@@ -47,16 +49,21 @@ if PY2:
 
 encode_json = json.JSONEncoder(**json_encoder_kwargs).encode
 
+
 def encode_field(obj):
     try:
-        return encode_json(obj)
+        s = encode_json(obj)
+        if isinstance(s, binary_type):
+            return s.decode('utf-8')
+        return s
     except TypeError:
         return '#' + text_type(repr(obj)) + '!'
 
 
 def should_iter_unless_list(obj):
     # a list is a reasonable value type so don't flatten it
-    return hasattr(obj, '__iter__') and not isinstance(obj, do_not_iter + (list,))
+    return (hasattr(obj, '__iter__') and
+            not isinstance(obj, do_not_iter + (list,)))
 
 
 class Value(tuple):
@@ -74,15 +81,16 @@ class Value(tuple):
 
     def text(self):
         """ Returns the text this value as a labelled JSON line. """
-        iterables = [map(encode_field, flatten(label)) for label in self.labels]
-        iterables.append(map(encode_field, flatten(self.value, should_iter_unless_list)))
+        iterables = [map(encode_field, flatten(label))
+                     for label in self.labels]
+        flattened = flatten(self.value, should_iter_unless_list)
+        iterables.append(map(encode_field, flattened))
         for fields in product(*iterables):
             yield TAB.join(fields) + NL
 
     def label(self, *labels):
         """ Adds zero or more labels to this value. """
         return self.__class__(tuple(labels) + self)
-
 
 
 def yield_values(extract, *args, **kw):

@@ -2,7 +2,7 @@ from __future__ import unicode_literals, print_function, absolute_import
 from tempfile import SpooledTemporaryFile as SpooledTemporaryFile_
 from shutil import copyfileobj
 from six.moves.urllib.response import addinfourl
-from six.moves.http_client import BadStatusLine
+from six.moves.http_client import BadStatusLine as _BadStatusLine
 from .py2compat import parse_headers
 from .cache import Cache
 from .value import yield_values
@@ -11,6 +11,13 @@ from .iterable import _do_not_iter_append
 
 DEFAULT_READ_SIZE = 2**16  # 64K
 MAX_IN_MEMORY_SIZE = 2**29      # 512M
+
+
+class BadStatusLine(_BadStatusLine):
+
+    def __init__(self, line, readable):
+        _BadStatusLine.__init__(self, line)
+        self.args = line, readable
 
 
 class Response(addinfourl):
@@ -54,7 +61,8 @@ class Response(addinfourl):
     @classmethod
     def from_readable(cls, readable):
         status_line = readable.readline()
-        protocol, version, code, reason = cls.parse_status_line(status_line)
+        protocol, version, code, reason = cls.parse_status_line(readable,
+                                                                status_line)
         headers = parse_headers(readable)
         request_url = headers.get('X-wex-request-url')
         url = headers.get('X-wex-url', request_url)
@@ -69,13 +77,15 @@ class Response(addinfourl):
                         request_url=request_url)
 
     @staticmethod
-    def parse_status_line(status_line, field_defaults=['']*3):
+    def parse_status_line(readable, status_line=None, field_defaults=['']*3):
+        if status_line is None:
+            status_line = readable.readline()
         fields = status_line.rstrip(b'\r\n').split(None, 2) + field_defaults
         protocol_version, code, reason = fields[:3]
 
         # status code is always an integer
         if not code.isdigit():
-            raise BadStatusLine(status_line)
+            raise BadStatusLine(status_line, readable)
         code = int(code)
 
         protocol, _, version = protocol_version.partition(b'/')
@@ -84,7 +94,7 @@ class Response(addinfourl):
         try:
             version = tuple(map(int, version.split(b'.')))
         except ValueError:
-            raise BadStatusLine(status_line)
+            raise BadStatusLine(status_line, readable)
 
         return protocol, version, code, reason
 
