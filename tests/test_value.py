@@ -1,8 +1,9 @@
-from six import next
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+from six import next, PY2
 from wex.value import Value, yield_values
 
 whoops = ValueError("whoops")
-
 
 
 def test_yield_values():
@@ -14,6 +15,18 @@ def test_yield_values():
 def test_labels():
     val = Value(('a', 1))
     assert val.labels == ('a',)
+
+
+def test_mixed_types_from_json_dumps_bug():
+    unicode_str = u's'
+    binary_str = u'é'
+    if PY2:
+        # Under Python 2 json.dumps may produce either `str` or `unicode`.
+        # There was a bug that when we got a mixture and the `str` was not
+        # encodable as `ascii` then we could get a UnicodeDecodeError.
+        binary_str.encode('utf-8')
+    val = Value((binary_str, unicode_str))
+    assert [line for line in val.text()] == ['"\xe9"\t"s"\n']
 
 
 def test_text():
@@ -32,6 +45,7 @@ def test_labels_empty():
 
 def test_yield_values_raises_error():
     error = ValueError("whoops")
+
     def ex():
         raise error
     assert list(yield_values(ex)) == [Value(error)]
