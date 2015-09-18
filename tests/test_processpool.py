@@ -1,3 +1,4 @@
+import time
 import tempfile
 import pytest
 from multiprocessing import Lock
@@ -78,6 +79,7 @@ def test_error_during_iteration():
     def error_during_iteration():
         yield (t.name, 1)
         yield (t.name, 2)
+        time.sleep(0.01)
         raise MyKindOfError(t.name)
     iterable = error_during_iteration()
     with pytest.raises(MyKindOfError):
