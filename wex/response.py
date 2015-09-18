@@ -39,6 +39,7 @@ class Response(addinfourl):
         self.protocol = kw.pop('protocol', None)
         self.version = kw.pop('version', None)
         self.reason = kw.pop('reason', None)
+        self.magic_bytes = kw.pop('magic_bytes', None)
         if kw:
             raise ValueError("unexpected keyword arguments %r" % kw.keys())
 
@@ -66,7 +67,7 @@ class Response(addinfourl):
         headers = parse_headers(readable)
         request_url = headers.get('X-wex-request-url')
         url = headers.get('X-wex-url', request_url)
-        content = cls.content_file(readable, headers)
+        magic_bytes, content = cls.content_file(readable, headers)
         return Response(content,
                         headers,
                         url,
@@ -74,7 +75,8 @@ class Response(addinfourl):
                         protocol=protocol.decode('UTF-8'),
                         version=version,
                         reason=reason.decode('UTF-8'),
-                        request_url=request_url)
+                        request_url=request_url,
+                        magic_bytes=magic_bytes)
 
     @staticmethod
     def parse_status_line(readable, status_line=None, field_defaults=['']*3):
@@ -101,10 +103,11 @@ class Response(addinfourl):
     @classmethod
     def content_file(cls, response_file, headers):
         content_file = SpooledTemporaryFile(max_size=MAX_IN_MEMORY_SIZE)
+        magic_bytes = response_file.read(8)
+        content_file.write(magic_bytes)
         copyfileobj(response_file, content_file)
         content_file.seek(0)
-
-        return content_file
+        return magic_bytes, content_file
 
 
 class SpooledTemporaryFile(SpooledTemporaryFile_):

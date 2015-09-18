@@ -78,13 +78,13 @@ def readable_from_response(response, url, decode_content, context):
 
 def decode(src):
     content_encoding = src.headers.get('content-encoding', '')
-    has_gzip_magic = (src.headers.get('X-wex-has-gzip-magic', '0') == '1')
-    gzip = (
+    declared_as_gzip = (
         src.headers.get_content_subtype() == 'x-gzip' or
         content_encoding == 'x-gzip' or
-        (content_encoding == 'gzip' and has_gzip_magic)
+        content_encoding == 'gzip'
     )
-    if gzip:
+    has_gzip_magic = (src.magic_bytes[:2] == b'\037\213')
+    if declared_as_gzip and has_gzip_magic:
         src.seek(0)
         return GzipFile(fileobj=src.fp, mode='rb')
     return src
