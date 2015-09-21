@@ -11,6 +11,7 @@ from .iterable import _do_not_iter_append
 
 DEFAULT_READ_SIZE = 2**16  # 64K
 MAX_IN_MEMORY_SIZE = 2**29      # 512M
+MAGIC_BYTES_LEN = 8
 
 
 class BadStatusLine(_BadStatusLine):
@@ -103,7 +104,7 @@ class Response(addinfourl):
     @classmethod
     def content_file(cls, response_file, headers):
         content_file = SpooledTemporaryFile(max_size=MAX_IN_MEMORY_SIZE)
-        magic_bytes = response_file.read(8)
+        magic_bytes = response_file.read(MAGIC_BYTES_LEN)
         content_file.write(magic_bytes)
         copyfileobj(response_file, content_file)
         content_file.seek(0)

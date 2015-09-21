@@ -7,6 +7,7 @@ import requests
 from requests.sessions import merge_setting
 from gzip import GzipFile
 from .readable import ChainedReadable
+from .http_decoder import DeflateDecoder, GzipDecoder
 
 
 GZIP_MAGIC = b'\x1f\x8b'
@@ -52,28 +53,37 @@ def readable_from_response(response, url, decode_content, context):
     """ Make an object that is readable by `Response`.from_file. """
 
     headers = io.TextIOWrapper(io.BytesIO(), encoding='utf-8', newline='\n')
+
     protocol = 'HTTP'
     version = '{:.1f}'.format(response.raw.version / 10.0)
     code = response.status_code
     reason = response.reason
     status_line = format_status_line(protocol, version, code, reason)
-    response.raw.decode_content = decode_content
-    magic_bytes = response.raw.read(2)
     headers.write(status_line)
+
     for name, value in response.headers.items():
         headers.write(format_header(name.capitalize(), value))
     headers.write(format_header('X-wex-request-url', url))
+
     if response.url != url:
         # the URL for the response is not the same as the requested URL
         headers.write(format_header('X-wex-url', response.url))
-    if magic_bytes == GZIP_MAGIC:
-        headers.write(format_header('X-wex-has-gzip-magic', '1'))
     for name, value in context.items():
         headers.write(format_header('X-wex-context-{}'.format(name), value))
     headers.write(CRLF)
     headers.seek(0)
 
-    return ChainedReadable(headers.detach(), io.BytesIO(magic_bytes), response.raw)
+    # switch off urllib3 content decoding
+    response.raw.decode_content = False
+    content_encoding = response.headers.get('content-encoding', '').lower()
+    if decode_content and content_encoding == 'gzip':
+        content = GzipDecoder(response.raw)
+    elif decode_content and content_encoding == 'deflate':
+        content = DeflateDecoder(response.raw)
+    else:
+        content = response.raw
+
+    return ChainedReadable(headers.detach(), content)
 
 
 def decode(src):
