@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.8.2 (2015-09-21)
+++++++++++++++++++
+
+  * Add magic_bytes to Response for more reliable wex.http:decode behaviour.
+
+
 0.7.9 (2015-08-18)
 ++++++++++++++++++
 
