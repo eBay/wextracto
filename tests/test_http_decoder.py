@@ -61,4 +61,4 @@ def test_wrong_decoder():
     uncompressed = os.urandom(1024 * 2)
     with pytest.raises(zlib.error) as excinfo:
         decode(uncompressed, compress_with_deflate, GzipDecoder)
-    assert excinfo.value.message.startswith('Error -3 ')
+    assert excinfo.value.args[0].startswith('Error -3 ')
