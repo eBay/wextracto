@@ -56,10 +56,11 @@ class ZDecoder(io.RawIOBase):
 
             else:
 
-                decompressed = self.flushed[:max_length]
-                self.flushed = self.flushed[max_length:]
                 if not self.flushed:
                     return n
+
+                decompressed = self.flushed[:max_length]
+                self.flushed = self.flushed[max_length:]
 
             buf[n:n+len(decompressed)] = decompressed
             n += len(decompressed)
