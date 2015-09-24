@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.8.3 (2015-09-23)
+++++++++++++++++++
+
+  * Fix bug in HTTP decode caused by magic bytes handling.
+
+
 0.8.2 (2015-09-21)
 ++++++++++++++++++
 
