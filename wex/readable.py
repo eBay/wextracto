@@ -92,7 +92,7 @@ def readables_from_paths(paths, save_dir=None):
             tar = tarfile.open(mode='r|*', fileobj=stdin)
             for member in tar:
                 yield tar.extractfile(member)
-        elif URL(path).parsed.scheme:
+        elif not os.path.exists(path) and URL(path).parsed.scheme:
             url = URL(path)
             readables = url.get()
             if save_dir:
