@@ -66,16 +66,16 @@ class Response(addinfourl):
         protocol, version, code, reason = cls.parse_status_line(readable,
                                                                 status_line)
         headers = parse_headers(readable)
-        request_url = headers.get('X-wex-request-url')
-        url = headers.get('X-wex-url', request_url)
+        request_url = headers.get('X-wex-request-url').decode('utf-8')
+        url = headers.get('X-wex-url', request_url).decode('utf-8')
         magic_bytes, content = cls.content_file(readable, headers)
         return Response(content,
                         headers,
                         url,
                         code=code,
-                        protocol=protocol.decode('UTF-8'),
+                        protocol=protocol.decode('utf-8'),
                         version=version,
-                        reason=reason.decode('UTF-8'),
+                        reason=reason.decode('utf-8'),
                         request_url=request_url,
                         magic_bytes=magic_bytes)
 
