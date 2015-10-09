@@ -92,8 +92,12 @@ def parse(src):
         quoted_base_url = quote(src.url) if src.url else src.url
         while True:
             try:
-                parser = HTMLParser()
                 fp = replace_invalid_ncr(stream)
+                # fp is a Unicode stream
+                # The lxml FAQ tells us that it is inefficient to do this
+                # http://lxml.de/FAQ.html#can-lxml-parse-from-file-objects-opened-in-unicode-text-mode
+                # but actually it seems just fine as long as you tell the parser to use 'utf-8'!?
+                parser = HTMLParser(encoding='utf-8')
                 etree.parse(fp, parser=parser, base_url=quoted_base_url)
                 break
             except UnicodeDecodeError as exc:

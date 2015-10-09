@@ -78,6 +78,14 @@ def test_parse_next_decoder():
     assert list(etree.getroot().itertext()) == ['\n', '巨', '\n']
 
 
+def test_bug_cp1252():
+    resource = 'fixtures/bug_cp1252'
+    readable = resource_stream(__name__, resource)
+    response = Response.from_readable(readable)
+    etree = e.parse(response)
+    assert etree.xpath('//title/text()') == ['Problem²']
+
+
 def test_parse_unreadable():
     obj = object()
     assert e.parse(obj) is obj
@@ -93,6 +101,9 @@ def test_parse_ioerror():
 
         def read(self, *args):
             raise IOError
+
+        def seek(self, *args):
+            pass
 
     response = ProblemResponse()
     etree = e.parse(response)
