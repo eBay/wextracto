@@ -5,4 +5,4 @@ Wextracto is a library for extracting data from web resources.
 
 """
 
-__version__ = '0.8.3'  # pragma: no cover
+__version__ = '0.8.4'  # pragma: no cover
