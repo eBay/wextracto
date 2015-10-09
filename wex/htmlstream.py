@@ -165,6 +165,7 @@ class HTMLStream(object):
         parser = HTMLParser(target=target, encoding='ISO-8859-1')
         total_bytes = 0
 
+        self.response.seek(0)
         while target:
             chunk = self.response.read(PRE_PARSE_CHUNK_SIZE)
             if not chunk:
