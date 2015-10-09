@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, print_function, absolute_import
 from tempfile import SpooledTemporaryFile as SpooledTemporaryFile_
 from shutil import copyfileobj
+from six import PY2
 from six.moves.urllib.response import addinfourl
 from six.moves.http_client import BadStatusLine as _BadStatusLine
 from .py2compat import parse_headers
@@ -66,8 +67,13 @@ class Response(addinfourl):
         protocol, version, code, reason = cls.parse_status_line(readable,
                                                                 status_line)
         headers = parse_headers(readable)
-        request_url = headers.get('X-wex-request-url').decode('utf-8')
-        url = headers.get('X-wex-url', request_url).decode('utf-8')
+        request_url = headers.get('X-wex-request-url')
+        url = headers.get('X-wex-url', request_url)
+        if PY2:
+            if request_url is not None:
+                request_url = request_url.decode('utf-8')
+            if url is not None:
+                url = url.decode('utf-8')
         magic_bytes, content = cls.content_file(readable, headers)
         return Response(content,
                         headers,
