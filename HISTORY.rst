@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.8.5 (2015-12-07)
+++++++++++++++++++
+
+  * Allow utf-8 in HTTP headers (only applies to PY2)
+
+
 0.8.3 (2015-09-23)
 ++++++++++++++++++
 
