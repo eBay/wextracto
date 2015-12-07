@@ -4,6 +4,7 @@ from __future__ import unicode_literals, print_function
 import wex.py2compat ; assert wex.py2compat
 import io
 import requests
+from six import PY2
 from requests.sessions import merge_setting
 from gzip import GzipFile
 from .readable import ChainedReadable
@@ -62,7 +63,26 @@ def readable_from_response(response, url, decode_content, context):
     headers.write(status_line)
 
     for name, value in response.headers.items():
+
+        # Strictly speaking headers should only be iso-8859-1
+        # but we've got a good chance of detecting incorrect utf-8
+        # and for most headers it won't matter as they will be
+        # in the common ascii subset.
+
+        if PY2:
+
+            try:
+                name = name.decode('utf-8')
+            except UnicodeDecodeError:
+                name = name.decode('iso-8859-1')
+
+            try:
+                value = value.decode('utf-8')
+            except UnicodeDecodeError:
+                value = value.decode('iso-8859-1')
+
         headers.write(format_header(name.capitalize(), value))
+
     headers.write(format_header('X-wex-request-url', url))
 
     if response.url != url:
