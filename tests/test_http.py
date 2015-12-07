@@ -24,6 +24,26 @@ def test_get():
     assert get(url) == [200]
 
 
+def test_urllib3_issue_709_gzip():
+    # https://github.com/shazow/urllib3/issues/709
+    url = 'http://httpbin.org/gzip'
+    for response in map(Response.from_readable, URL(url).get()):
+        # the partial read should let us see some not-so-magic bytes
+        assert response.magic_bytes == b'{\n  "gzi'
+        data = json.load(utf8_reader(response))
+        assert 'gzipped' in data
+
+
+def test_urllib3_issue_709_deflate():
+    # https://github.com/shazow/urllib3/issues/709
+    url = 'http://httpbin.org/deflate'
+    for response in map(Response.from_readable, URL(url).get()):
+        # the partial read should let us see some not-so-magic bytes
+        assert response.magic_bytes == b'{\n  "def'
+        data = json.load(utf8_reader(response))
+        assert 'deflated' in data
+
+
 def test_get_with_context():
     url = 'http://httpbin.org/headers'
     for readable in URL(url).get(context={'foo': 'bar'}):
@@ -40,14 +60,13 @@ def test_get_gzip():
     url = 'http://httpbin.org/gzip'
     for i, readable in enumerate(URL(url).get(decode_content=False)):
         response = Response.from_readable(readable)
-        assert response.headers.get('X-wex-has-gzip-magic') == '1'
         data = json.load(utf8_reader(decode(response)))
         assert data.get('gzipped')
     assert i == 0
 
 
 def test_post():
-    method = {"post":{"data":{"x":"1"}}}
+    method = {"post": {"data": {"x": "1"}}}
     url = URL('http://httpbin.org/post').update_fragment_dict(method=method)
     for readable in url.get():
         response = Response.from_readable(readable)

@@ -15,7 +15,8 @@ from threading import local
 from functools import partial as partial_
 from contextlib import closing
 from six import PY2
-from . import py2compat  # flake8: noqa
+from . import py2compat
+assert py2compat
 from .url import URL
 
 
@@ -87,12 +88,12 @@ def readables_from_paths(paths, save_dir=None):
     """ Yield readables from a sequence of paths """
 
     for path in paths:
-        if path.strip() == '-':
+        if path.strip() == b'-':
             stdin = sys.stdin if PY2 else sys.stdin.buffer
             tar = tarfile.open(mode='r|*', fileobj=stdin)
             for member in tar:
                 yield tar.extractfile(member)
-        elif URL(path).parsed.scheme:
+        elif not os.path.exists(path) and URL(path).parsed.scheme:
             url = URL(path)
             readables = url.get()
             if save_dir:

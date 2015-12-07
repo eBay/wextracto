@@ -5,7 +5,7 @@ import logging
 from operator import attrgetter, methodcaller
 from hashlib import md5
 from contextlib import contextmanager
-from six import text_type, string_types, next
+from six import text_type, binary_type, string_types, next
 from six.moves import filter
 from six.moves.urllib_parse import (urlparse,
                                     urlunparse,
@@ -75,8 +75,9 @@ class URL(text_type):
     """ URL objects. """
 
     def __new__(cls, urlstring):
-        if not isinstance(urlstring, string_types):
-            raise ValueError
+        if isinstance(urlstring, binary_type):
+            # here we make a safe-ish assumption it is  a utf-8 string
+            urlstring = urlstring.decode('utf-8')
         url = super(URL, cls).__new__(cls, urlstring)
         url.parsed = urlparse(url)
         return url

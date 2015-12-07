@@ -1,4 +1,5 @@
-from __future__ import print_function
+# coding: utf-8
+from __future__ import unicode_literals, print_function
 import os
 import pytest
 from six import BytesIO
@@ -6,6 +7,10 @@ from wex.url import URL, DEFAULT_METHOD, eexist_is_ok
 from wex.response import Response
 # we are going to use lots of functions from wex.url so let's save some typing
 from wex import url as u
+
+def test_unicode_url():
+    url = u.URL(b'http://example.net/\xc2\xae')
+    assert url == 'http://example.net/®'
 
 
 def test_fragment_quoted():

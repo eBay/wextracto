@@ -12,6 +12,8 @@ def stream_from_fixture(fixture):
     resource = 'fixtures/htmlstream/' + fixture
     readable = resource_stream(__name__, resource)
     response = Response.from_readable(readable)
+    # do a read just to make sure that we seek(0)
+    response.read(100)
     stream = HTMLStream(response)
     return stream
 

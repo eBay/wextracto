@@ -4,9 +4,11 @@ from __future__ import unicode_literals, print_function
 import wex.py2compat ; assert wex.py2compat
 import io
 import requests
+from six import PY2
 from requests.sessions import merge_setting
 from gzip import GzipFile
 from .readable import ChainedReadable
+from .http_decoder import DeflateDecoder, GzipDecoder
 
 
 GZIP_MAGIC = b'\x1f\x8b'
@@ -52,39 +54,67 @@ def readable_from_response(response, url, decode_content, context):
     """ Make an object that is readable by `Response`.from_file. """
 
     headers = io.TextIOWrapper(io.BytesIO(), encoding='utf-8', newline='\n')
+
     protocol = 'HTTP'
     version = '{:.1f}'.format(response.raw.version / 10.0)
     code = response.status_code
     reason = response.reason
     status_line = format_status_line(protocol, version, code, reason)
-    response.raw.decode_content = decode_content
-    magic_bytes = response.raw.read(2)
     headers.write(status_line)
+
     for name, value in response.headers.items():
+
+        # Strictly speaking headers should only be iso-8859-1
+        # but we've got a good chance of detecting incorrect utf-8
+        # and for most headers it won't matter as they will be
+        # in the common ascii subset.
+
+        if PY2:
+
+            try:
+                name = name.decode('utf-8')
+            except UnicodeDecodeError:
+                name = name.decode('iso-8859-1')
+
+            try:
+                value = value.decode('utf-8')
+            except UnicodeDecodeError:
+                value = value.decode('iso-8859-1')
+
         headers.write(format_header(name.capitalize(), value))
+
     headers.write(format_header('X-wex-request-url', url))
+
     if response.url != url:
         # the URL for the response is not the same as the requested URL
         headers.write(format_header('X-wex-url', response.url))
-    if magic_bytes == GZIP_MAGIC:
-        headers.write(format_header('X-wex-has-gzip-magic', '1'))
     for name, value in context.items():
         headers.write(format_header('X-wex-context-{}'.format(name), value))
     headers.write(CRLF)
     headers.seek(0)
 
-    return ChainedReadable(headers.detach(), io.BytesIO(magic_bytes), response.raw)
+    # switch off urllib3 content decoding
+    response.raw.decode_content = False
+    content_encoding = response.headers.get('content-encoding', '').lower()
+    if decode_content and content_encoding == 'gzip':
+        content = GzipDecoder(response.raw)
+    elif decode_content and content_encoding == 'deflate':
+        content = DeflateDecoder(response.raw)
+    else:
+        content = response.raw
+
+    return ChainedReadable(headers.detach(), content)
 
 
 def decode(src):
     content_encoding = src.headers.get('content-encoding', '')
-    has_gzip_magic = (src.headers.get('X-wex-has-gzip-magic', '0') == '1')
-    gzip = (
+    declared_as_gzip = (
         src.headers.get_content_subtype() == 'x-gzip' or
         content_encoding == 'x-gzip' or
-        (content_encoding == 'gzip' and has_gzip_magic)
+        content_encoding == 'gzip'
     )
-    if gzip:
+    has_gzip_magic = (src.magic_bytes[:2] == b'\037\213')
+    if declared_as_gzip and has_gzip_magic:
         src.seek(0)
         return GzipFile(fileobj=src.fp, mode='rb')
     return src

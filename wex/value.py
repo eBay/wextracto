@@ -26,6 +26,7 @@ import json
 import logging
 from itertools import product
 from operator import itemgetter
+from bdb import BdbQuit
 from six import PY2, binary_type, text_type, reraise
 from six.moves import map
 from .iterable import walk, flatten, do_not_iter
@@ -102,6 +103,8 @@ def yield_values(extract, *args, **kw):
         for walker in walk(returned, should_iter_unless_list):
             for value in walker:
                 yield Value(value)
+    except BdbQuit:
+        raise
     except Exception as exc:
         exc_info = sys.exc_info()
         yield Value(exc)

@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, print_function, absolute_import
 from tempfile import SpooledTemporaryFile as SpooledTemporaryFile_
 from shutil import copyfileobj
+from six import PY2
 from six.moves.urllib.response import addinfourl
 from six.moves.http_client import BadStatusLine as _BadStatusLine
 from .py2compat import parse_headers
@@ -11,6 +12,7 @@ from .iterable import _do_not_iter_append
 
 DEFAULT_READ_SIZE = 2**16  # 64K
 MAX_IN_MEMORY_SIZE = 2**29      # 512M
+MAGIC_BYTES_LEN = 8
 
 
 class BadStatusLine(_BadStatusLine):
@@ -39,6 +41,7 @@ class Response(addinfourl):
         self.protocol = kw.pop('protocol', None)
         self.version = kw.pop('version', None)
         self.reason = kw.pop('reason', None)
+        self.magic_bytes = kw.pop('magic_bytes', None)
         if kw:
             raise ValueError("unexpected keyword arguments %r" % kw.keys())
 
@@ -66,15 +69,21 @@ class Response(addinfourl):
         headers = parse_headers(readable)
         request_url = headers.get('X-wex-request-url')
         url = headers.get('X-wex-url', request_url)
-        content = cls.content_file(readable, headers)
+        if PY2:
+            if request_url is not None:
+                request_url = request_url.decode('utf-8')
+            if url is not None:
+                url = url.decode('utf-8')
+        magic_bytes, content = cls.content_file(readable, headers)
         return Response(content,
                         headers,
                         url,
                         code=code,
-                        protocol=protocol.decode('UTF-8'),
+                        protocol=protocol.decode('utf-8'),
                         version=version,
-                        reason=reason.decode('UTF-8'),
-                        request_url=request_url)
+                        reason=reason.decode('utf-8'),
+                        request_url=request_url,
+                        magic_bytes=magic_bytes)
 
     @staticmethod
     def parse_status_line(readable, status_line=None, field_defaults=['']*3):
@@ -101,10 +110,11 @@ class Response(addinfourl):
     @classmethod
     def content_file(cls, response_file, headers):
         content_file = SpooledTemporaryFile(max_size=MAX_IN_MEMORY_SIZE)
+        magic_bytes = response_file.read(MAGIC_BYTES_LEN)
+        content_file.write(magic_bytes)
         copyfileobj(response_file, content_file)
         content_file.seek(0)
-
-        return content_file
+        return magic_bytes, content_file
 
 
 class SpooledTemporaryFile(SpooledTemporaryFile_):

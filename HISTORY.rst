@@ -3,6 +3,24 @@
 Release History
 ---------------
 
+0.8.5 (2015-12-07)
+++++++++++++++++++
+
+  * Allow utf-8 in HTTP headers (only applies to PY2)
+
+
+0.8.3 (2015-09-23)
+++++++++++++++++++
+
+  * Fix bug in HTTP decode caused by magic bytes handling.
+
+
+0.8.2 (2015-09-21)
+++++++++++++++++++
+
+  * Add magic_bytes to Response for more reliable wex.http:decode behaviour.
+
+
 0.7.9 (2015-08-18)
 ++++++++++++++++++
 
