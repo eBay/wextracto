@@ -27,6 +27,7 @@ def request(url, method, session=None, **kw):
     proxies = kw.get('proxies', None)
     headers = merge_setting(method.args.get('headers'), kw.get('headers'))
     context = kw.get('context', {})
+    auth = merge_setting(method.args.get('auth'), kw.get('auth'))
 
     response = session.request(
         method.name,
@@ -38,6 +39,7 @@ def request(url, method, session=None, **kw):
         params=method.args.get('params', None),
         proxies=proxies,
         timeout=timeout,
+        auth=auth,
     )
     yield readable_from_response(response, url, decode_content, context)
 
