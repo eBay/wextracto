@@ -9,7 +9,7 @@ import logging
 from itertools import islice, chain
 from copy import deepcopy
 from operator import methodcaller, itemgetter
-from six import string_types
+from six import string_types, PY2
 from six.moves import map, reduce
 from six.moves.urllib_parse import urljoin, quote, unquote
 from lxml.etree import (XPath,
@@ -28,9 +28,31 @@ from .ncr import replace_invalid_ncr
 from .url import URL, public_suffix
 
 
+if PY2:
+
+    def quote_base_url(base_url):
+        if isinstance(base_url, unicode):
+            return quote(base_url.encode('utf-8'))
+        return quote(base_url)
+
+    def unquote_base_url(quoted):
+        assert isinstance(quoted, unicode)
+        quoted = quoted.encode('ascii')
+        unquoted = unquote(quoted)
+        return unquoted.decode('utf-8')
+
+else:
+
+    quote_base_url = quote
+    unquote_base_url = unquote
+
+
 NEWLINE = u'\n'
 EMPTY = u''
 SPACE = u' '
+
+
+
 
 
 # we do not want to flatten etree elements
@@ -89,7 +111,7 @@ def parse(src):
         # When this happens lxml will quote the whole URL.
         # We don't want to have to check for this so we just always
         # quote it here and then unquote it in the `base_url` function.
-        quoted_base_url = quote(src.url) if src.url else src.url
+        quoted_base_url = quote_base_url(src.url) if src.url else src.url
         while True:
             try:
                 fp = replace_invalid_ncr(stream)
@@ -117,7 +139,7 @@ def parse(src):
 def get_base_url_from_root(root):
     if root.base_url:
         # see :func:`.parse` for why we need to unquote
-        base_url = unquote(root.base_url)
+        base_url = unquote_base_url(root.base_url)
     else:
         base_url = root.base_url
     return reduce(urljoin, base_href(root)[:1], base_url)
