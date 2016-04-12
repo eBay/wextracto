@@ -40,10 +40,8 @@ ncr_replacements = {
 }
 
 LT = '<'
-GT = '>'
 AMP = '&'
 SLASH = '/'
-HASH = '#'
 
 cdata_tags = ('script', 'style')
 
@@ -85,11 +83,11 @@ class InvalidNumCharRefReplacer(object):
 
 
 def clean_ncr(dirty, eof, cdata_tag=None):
+
+    # We scan 'dirty' for incorrect numeric character references.
+    # As we scan, we append 'clean' sections to 'parts'.
     parts = []
-    # tokenize 'dirty' looking for start tags and numeric character references
-    pos = 0
-    # position of start of next part
-    part_pos = 0
+    clean_start = clean_end = 0
 
     assert not cdata_tag or cdata_tag == cdata_tag.lower().strip()
 
@@ -107,10 +105,10 @@ def clean_ncr(dirty, eof, cdata_tag=None):
         else:
             begin_token = begin_tag_or_char_ref
 
-        begin = begin_token.search(dirty, pos)
+        begin = begin_token.search(dirty, clean_end)
         if not begin:
             # now we know there are not more tokens in this chunk
-            pos = len(dirty)
+            clean_end = len(dirty)
             break
 
         token = end_token[begin.group()].search(dirty, begin.end())
@@ -140,20 +138,22 @@ def clean_ncr(dirty, eof, cdata_tag=None):
                     code_point = int(ncr, 10)
 
                 if code_point in ncr_replacements:
-                    parts.append(dirty[part_pos:begin.start()])
+                    # append clean section
+                    parts.append(dirty[clean_start:begin.start()])
                     ncr = '&#x%0X' % ncr_replacements[code_point]
                     parts.append(ncr)
-                    part_pos = token.end()
+                    # next clean section starts here
+                    clean_start = token.end()
 
-        pos = token.end()
+        # everything up to this position is now clean
+        clean_end = token.end()
 
     if eof:
-        parts.append(dirty[part_pos:])
-        pos = len(dirty)
+        parts.append(dirty[clean_start:])
     else:
-        parts.append(dirty[:pos])
+        parts.append(dirty[clean_start:clean_end])
 
-    return ''.join(parts), dirty[pos:], cdata_tag
+    return ''.join(parts), dirty[clean_end:], cdata_tag
 
 #
 # When scanning for the begining of tokens we look just one character
