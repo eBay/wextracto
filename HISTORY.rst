@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.8.8 (2016-04-11)
+++++++++++++++++++
+
+  * Fix bug in handling of invalid numeric character references
+
+
 0.8.5 (2015-12-07)
 ++++++++++++++++++
 
