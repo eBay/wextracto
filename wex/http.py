@@ -16,17 +16,24 @@ CRLF = '\r\n'
 timeout = 30.0
 
 
+
 def request(url, method, session=None, **kw):
     """ Makes an HTTP request following redirects. """
+
+    import os
+
+    user_agent = os.environ.get('WEX_USER_AGENT')
 
     if session is None:
         session = requests.Session()
         session.stream = True
+        session.headers = {'User-Agent': user_agent} if user_agent else None
 
     decode_content = kw.get('decode_content', True)
     proxies = kw.get('proxies', None)
     headers = merge_setting(method.args.get('headers'), kw.get('headers'))
     context = kw.get('context', {})
+    auth = merge_setting(method.args.get('auth'), kw.get('auth'))
 
     response = session.request(
         method.name,
@@ -38,6 +45,7 @@ def request(url, method, session=None, **kw):
         params=method.args.get('params', None),
         proxies=proxies,
         timeout=timeout,
+        auth=auth,
     )
     yield readable_from_response(response, url, decode_content, context)
 

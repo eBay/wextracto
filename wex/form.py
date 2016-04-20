@@ -118,8 +118,9 @@ def submit_form(url, method, session=None, **kw):
 
     decode_content = kw.get('decode_content', True)
     proxies = kw.get('proxies', None)
-    context = kw.get('context', {})
     headers = merge_setting(method.args.get('headers'), kw.get('headers'))
+    context = kw.get('context', {})
+    auth = merge_setting(method.args.get('auth'), kw.get('auth'))
 
     response = session.request(
         'get',
@@ -131,6 +132,7 @@ def submit_form(url, method, session=None, **kw):
         params=method.args.get('params', None),
         proxies=proxies,
         timeout=timeout,
+        auth=auth,
     )
     readable = ParserReadable.from_response(response, url,
                                             decode_content=decode_content,

@@ -55,6 +55,17 @@ X-wex-request-url: http://foo.com/bar[]/baz/
 </html>
 """
 
+example_with_non_ascii_url = b"""HTTP/1.1 200 OK
+X-wex-request-url: http://foo.com/bar\xe2\x84\xa2/
+
+<html>
+  <body>
+      <a href="1"></a>
+  </body>
+</html>
+"""
+
+
 item0 = itemgetter(0)
 
 
@@ -263,8 +274,13 @@ def test_list_normalize_space():
 def test_href_when_url_contains_dodgy_characters():
     f = e.css('a') | e.href_url | list
     r = create_response(example_with_dodgy_url)
-    # This will fail if we don't quote/unquote the base_url
     assert f(r) == ['http://foo.com/1']
+
+
+def test_href_when_url_contains_non_ascii_characters():
+    f = e.css('a') | e.href_url | list
+    r = create_response(example_with_non_ascii_url)
+    assert f(r) == ['http://foo.com/bar™/1']
 
 
 def test_itertext():

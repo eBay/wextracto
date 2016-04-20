@@ -1,7 +1,8 @@
+import codecs
 import pytest
+from pkg_resources import resource_stream
 from six.moves.http_client import BadStatusLine
 from six import BytesIO
-import codecs
 from wex.response import Response, DEFAULT_READ_SIZE
 
 utf8_reader = codecs.getreader('UTF-8')
@@ -97,3 +98,9 @@ def test_extract_from_readable():
         yield (src.read(),)
     values = list(Response.values_from_readable(extract, readable))
     assert values == [(b'hello',)]
+
+
+def test_warc_response():
+    readable = resource_stream(__name__, 'fixtures/warc_response')
+    response = Response.from_readable(readable)
+    assert response.url == 'http://httpbin.org/get?this=that'

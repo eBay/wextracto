@@ -47,7 +47,8 @@ def get_wex_entry_points_from_cwd():
     try:
         with open(os.path.join(os.getcwd(), 'entry_points.txt')) as txt:
             entry_point_map = EntryPoint.parse_map(txt.read())
-        entry_points = {str(ep): ep for ep in entry_point_map[GROUP].values()}
+        entry_points = {str(ep): ep
+                        for ep in entry_point_map.get(GROUP, {}).values()}
         if os.getcwd() not in sys.path:
             sys.path.insert(0, os.getcwd())
     except IOError as exc:

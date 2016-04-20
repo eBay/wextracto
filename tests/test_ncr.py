@@ -10,6 +10,8 @@ script = """
 </script>
 """
 
+elem = "<code>Hello &#x95;</code>"
+
 
 def test_end_char_ref():
     assert ncr.end_char_ref.search('#123;').group(1) == '123'
@@ -55,3 +57,20 @@ def test_ncr_script():
 def test_ncr_no_semi_colon_terminated():
     content = ncr.InvalidNumCharRefReplacer(StringIO('&#x95,45'))
     assert content.read() == "&#x2022,45"
+
+
+def test_ncr_bug_read_with_size():
+    content = ncr.InvalidNumCharRefReplacer(StringIO(elem))
+    assert content.read(26) == "<code>Hello &#x2022;</code"
+    assert content.read(26) == ">"
+
+
+def test_read_less_that_whole_token():
+    content = ncr.InvalidNumCharRefReplacer(StringIO(elem))
+    assert content.read(2) == "<c"
+    assert content.read() == "ode>Hello &#x2022;</code>"
+
+
+def test_replace_invalid_ncr():
+    content = ncr.replace_invalid_ncr(StringIO(elem))
+    assert content.read() == "<code>Hello &#x2022;</code>"

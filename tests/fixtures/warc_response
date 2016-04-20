@@ -1,0 +1,34 @@
+WARC/1.0
+WARC-Type: response
+WARC-Date: 2015-10-04T03:26:19Z
+Content-Length: 12345
+Content-Type: application/http; msgtype=response
+WARC-Target-URI: http://httpbin.org/get?this=that
+WARC-Payload-Digest: sha1:PB4HC3MVQPHBN7F3MYCVHFOFTFFJU5DV
+WARC-Block-Digest: sha1:PRK2BQULAVJ3Y7USCB3YVI5MTZMCKV32
+WARC-Truncated: length
+
+HTTP/1.1 200 OK
+Content-length: 387
+Server: gunicorn/18.0
+Connection: keep-alive
+Access-control-allow-credentials: true
+Date: Thu, 17 Jul 2014 22:20:04 GMT
+Access-control-allow-origin: *
+Content-type: application/json
+
+{
+  "args": {
+    "this": "that"
+  }, 
+  "headers": {
+    "Accept": "*/*", 
+    "Accept-Encoding": "gzip, deflate", 
+    "Connection": "close", 
+    "Host": "httpbin.org", 
+    "User-Agent": "python-requests/2.3.0 CPython/2.7.5 Darwin/13.3.0", 
+    "X-Request-Id": "904ad85b-7d5c-43dc-992c-0b154dd4e073"
+  }, 
+  "origin": "216.113.168.130", 
+  "url": "http://httpbin.org/get?this=that"
+}
