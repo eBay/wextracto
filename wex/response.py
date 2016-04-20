@@ -63,11 +63,27 @@ class Response(addinfourl):
 
     @classmethod
     def from_readable(cls, readable):
+
         status_line = readable.readline()
+
+        if status_line.startswith(b'WARC/'):
+            warc_protocol, warc_version = cls.parse_warc_version(readable,
+                                                                 status_line)
+            warc_headers = parse_headers(readable)
+
+            # Now read the HTTP status line
+            status_line = readable.readline()
+
+        else:
+
+            warc_headers = None
+
         protocol, version, code, reason = cls.parse_status_line(readable,
                                                                 status_line)
         headers = parse_headers(readable)
         request_url = headers.get('X-wex-request-url')
+        if request_url is None and warc_headers:
+            request_url = warc_headers.get('WARC-target-uri')
         url = headers.get('X-wex-url', request_url)
         if PY2:
             if request_url is not None:
@@ -84,6 +100,16 @@ class Response(addinfourl):
                         reason=reason.decode('utf-8'),
                         request_url=request_url,
                         magic_bytes=magic_bytes)
+
+    @staticmethod
+    def parse_warc_version(readable, status_line):
+        protocol, _, version = status_line.partition(b'/')
+        # version is a tuple of integers
+        try:
+            version = tuple(map(int, version.split(b'.')))
+        except ValueError:
+            raise BadStatusLine(status_line, readable)
+        return protocol, version
 
     @staticmethod
     def parse_status_line(readable, status_line=None, field_defaults=['']*3):
