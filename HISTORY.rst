@@ -3,6 +3,13 @@
 Release History
 ---------------
 
+
+0.9.1 (2016-04-26)
+++++++++++++++++++
+
+  * Fix bug when using nested Cache objects
+
+
 0.9.0 (2016-04-16)
 ++++++++++++++++++
 
