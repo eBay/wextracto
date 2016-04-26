@@ -7,14 +7,27 @@ class Cache(dict):
     local = threading.local()
 
     def __enter__(self):
-        self.local.cache = self
+        try:
+            stack = self.local.stack
+        except AttributeError:
+            stack = self.local.stack = []
+        stack.append(self)
+        return self
 
     def __exit__(self, *exc_info):
-        del self.local.cache
+        popped = self.local.stack.pop()
+        assert popped is self
 
     @classmethod
     def get(cls):
-        return getattr(cls.local, 'cache', {})
+        try:
+            stack = cls.local.stack
+        except AttributeError:
+            pass
+        else:
+            if stack:
+                return stack[-1]
+        return {}
 
 
 def cached(f):
