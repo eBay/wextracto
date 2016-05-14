@@ -3,6 +3,11 @@
 Release History
 ---------------
 
+0.9.2 (2016-05-13)
+++++++++++++++++++
+
+  * Fix bug in handling HTML comments when fixing numeric character references
+
 
 0.9.1 (2016-04-26)
 ++++++++++++++++++
