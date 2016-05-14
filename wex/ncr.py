@@ -118,13 +118,14 @@ def clean_ncr(dirty, eof, cdata_tag=None):
             break
 
         if begin.group() == LT:
-            if token.group(1) == SLASH and cdata_tag:
-                tag = token.group(2).lower()
-                if tag == cdata_tag:
+            if token.group('slash') and cdata_tag:
+                tag = token.group('tag')
+                if tag and tag.lower() == cdata_tag:
                     cdata_tag = None
-            else:
-                tag = token.group(2).lower()
-                if not cdata_tag and tag in cdata_tags:
+            elif not token.group('comment'):
+                tag = token.group('tag')
+                tag = tag and tag.lower()
+                if not cdata_tag and tag and tag in cdata_tags:
                     cdata_tag = tag
         else:
             assert begin.group() == AMP
@@ -160,7 +161,7 @@ def clean_ncr(dirty, eof, cdata_tag=None):
 # at a time so that we don't have to worry about partial buffering.
 begin_tag = re.compile(LT)
 begin_tag_or_char_ref = re.compile('[<&]', re.I)
-end_tag = re.compile('(/?)\s*([a-z]+)(?=[^a-z])', re.I)
+end_tag = re.compile('(?P<comment>!--)|(?P<slash>/?)\s*(?P<tag>[a-z]+)(?=[^a-z])', re.I)
 end_char_ref = re.compile('[^#]|#(x[0-9A-F]+|[0-9]+)', re.I)
 
 
