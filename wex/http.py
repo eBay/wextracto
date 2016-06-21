@@ -34,6 +34,7 @@ def request(url, method, session=None, **kw):
     headers = merge_setting(method.args.get('headers'), kw.get('headers'))
     context = kw.get('context', {})
     auth = merge_setting(method.args.get('auth'), kw.get('auth'))
+    params = merge_setting(method.args.get('params'), kw.get('params'))
 
     response = session.request(
         method.name,
@@ -42,7 +43,7 @@ def request(url, method, session=None, **kw):
         cookies=method.args.get('cookies', None),
         data=method.args.get('data', None),
         headers=headers,
-        params=method.args.get('params', None),
+        params=params,
         proxies=proxies,
         timeout=timeout,
         auth=auth,
