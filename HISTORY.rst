@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.9.3 (2016-06-21)
+++++++++++++++++++
+
+  * Support 'params' keyword argument on URL.get
+
+
 0.9.2 (2016-05-13)
 ++++++++++++++++++
 
