@@ -4,7 +4,8 @@ from __future__ import unicode_literals, print_function
 import wex.py2compat ; assert wex.py2compat
 import io
 import requests
-from six import PY2
+from six import PY2, iteritems
+from six.moves.urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from requests.sessions import merge_setting
 from gzip import GzipFile
 from .readable import ChainedReadable
@@ -15,6 +16,14 @@ GZIP_MAGIC = b'\x1f\x8b'
 CRLF = '\r\n'
 timeout = 30.0
 
+
+def remove_url_params(url, params):
+    parsed = urlparse(url)
+    qsl = parse_qsl(parsed.query)
+    for item in iteritems(params):
+        qsl.remove(item)
+    replaced = parsed._replace(query=urlencode(qsl))
+    return urlunparse(replaced)
 
 
 def request(url, method, session=None, **kw):
@@ -48,6 +57,10 @@ def request(url, method, session=None, **kw):
         timeout=timeout,
         auth=auth,
     )
+
+    if 'params' in kw:
+        response.url = remove_url_params(response.url, kw['params'])
+
     yield readable_from_response(response, url, decode_content, context)
 
     redirects = session.resolve_redirects(response,

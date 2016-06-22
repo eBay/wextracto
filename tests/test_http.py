@@ -63,6 +63,7 @@ def test_get_with_params():
         data = json.load(utf8_reader(response))
         assert data.get('args') == params
         assert response.request_url == url
+        assert not 'secret' in response.url
 
 
 
