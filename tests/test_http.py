@@ -51,6 +51,22 @@ def test_get_with_context():
         assert response.headers.get('X-wex-context-foo') == 'bar'
 
 
+def test_get_with_params():
+    url = 'http://httpbin.org/get'
+    # The use case for adding params at '.get' time is for handling
+    # authentication tokens to URLs.  The net effect is that the
+    # tokens are not saved in the Wex response which is a way of
+    # avoiding sharing your access tokens.
+    params = {'token': 'secret'}
+    for readable in URL(url).get(params=params):
+        response = Response.from_readable(readable)
+        data = json.load(utf8_reader(response))
+        assert data.get('args') == params
+        assert response.request_url == url
+        assert not 'secret' in response.url
+
+
+
 def test_get_with_redirect():
     url = 'http://httpbin.org/redirect-to?url=http://httpbin.org/headers'
     assert get(url) == [302, 200]

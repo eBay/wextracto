@@ -133,8 +133,9 @@ page.onLoadFinished = function(status) {
 
 function writeWexOut(nav) {
     var wexout = [];
+    // we may find nav.response.status is null so record that as 502
     wexout.push("HTTP/1.1 " +
-                nav.response.status + " " + 
+                (nav.response.status || 502) + " " +
                 nav.response.statusText);
     for (var i=0; i<nav.response.headers.length; i++) {
         var header = nav.response.headers[i];
