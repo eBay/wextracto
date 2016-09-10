@@ -3,6 +3,13 @@
 Release History
 ---------------
 
+0.9.6 (2016-09-09)
+++++++++++++++++++
+
+  * Fix shutdown error caused by daemon thread for timeout with phantomjs
+  * Fix handling of directories in tarfiles read from stdin (-)
+
+
 0.9.5 (2016-09-06)
 ++++++++++++++++++
 

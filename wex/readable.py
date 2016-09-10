@@ -92,7 +92,8 @@ def readables_from_paths(paths, save_dir=None):
             stdin = sys.stdin if PY2 else sys.stdin.buffer
             tar = tarfile.open(mode='r|*', fileobj=stdin)
             for member in tar:
-                yield tar.extractfile(member)
+                if member.name.endswith(EXT_WEXIN):
+                    yield tar.extractfile(member)
         elif not os.path.exists(path) and URL(path).parsed.scheme:
             url = URL(path)
             readables = url.get()
