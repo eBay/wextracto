@@ -1,7 +1,9 @@
 from __future__ import unicode_literals, print_function, absolute_import
+import os
+import itertools
 from tempfile import SpooledTemporaryFile as SpooledTemporaryFile_
 from shutil import copyfileobj
-from six import PY2
+from six import PY2, next
 from six.moves.urllib.response import addinfourl
 from six.moves.http_client import BadStatusLine as _BadStatusLine
 from .py2compat import parse_headers
@@ -35,8 +37,13 @@ class Response(addinfourl):
         :param request_url: The URL requested that led to this response.
     """
 
+    #: A counter used for generating, within each process, an identifier
+    #: to uniquely identify each response object.
+    response_ids = itertools.count(1)
+
     def __init__(self, content, headers, url, code=None, **kw):
         addinfourl.__init__(self, content, headers, url, code)
+        self.id = next(self.response_ids)
         self.request_url = kw.pop('request_url', None)
         self.protocol = kw.pop('protocol', None)
         self.version = kw.pop('version', None)
@@ -55,10 +62,12 @@ class Response(addinfourl):
         return self.fp
 
     @classmethod
-    def values_from_readable(cls, extractor, readable):
+    def values_from_readable(cls, extractor, readable, label_funcs=()):
         response = cls.from_readable(readable)
         with Cache():
+            labels = [func(response) for func in label_funcs]
             for value in yield_values(extractor, response):
+                value = value.label(*labels)
                 yield value
 
     @classmethod
@@ -146,6 +155,22 @@ class Response(addinfourl):
 class SpooledTemporaryFile(SpooledTemporaryFile_):
     def read(self, size=None):
         return self._file.read() if size is None else self._file.read(size)
+
+
+def id(response):
+    """ Returns a generated id for the current response object.
+        This can be helpful when specified as a `--label` argument.
+       :param response: A :class:`wex.response.Response` object.
+    """
+    return response.id
+
+
+def pid(response):
+    """ Returns the operating process id.
+        This can be helpful when specified as a `--label` argument.
+       :param response: A :class:`wex.response.Response` object.
+    """
+    return os.getpid()
 
 
 # Response supports __iter__ because that is normal for file-like objects

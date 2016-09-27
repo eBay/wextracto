@@ -22,7 +22,7 @@ import errno
 import argparse
 import logging.config
 from multiprocessing import cpu_count
-from pkg_resources import resource_filename
+from pkg_resources import resource_filename, EntryPoint
 from .readable import readables_from_paths
 from .response import Response
 from .processpool import do
@@ -41,6 +41,25 @@ argparser.add_argument(
     metavar='path',
     nargs='+',
     help="file, directory or url from which to extract"
+)
+
+
+def label_func(spec):
+    ep = EntryPoint.parse('ep = {}'.format(spec))
+    func = ep.load(require=False)
+    if not callable(func):
+        raise ValueError("'%s' is not callable" % spec)
+    return func
+
+
+argparser.add_argument(
+    '-l',
+    '--label',
+    dest='label_funcs',
+    type=label_func,
+    action='append',
+    default=[],
+    help="function to generate a label",
 )
 
 save_group = argparser.add_argument_group("Save extraction input and output")
@@ -105,9 +124,10 @@ on_exc.add_argument(
 
 class WriteExtractedValues(object):
 
-    def __init__(self, stdout, extract):
+    def __init__(self, stdout, extract, label_funcs=()):
         self.stdout = stdout
         self.extract = extract
+        self.label_funcs = label_funcs
 
     def __call__(self, readable):
 
@@ -115,7 +135,9 @@ class WriteExtractedValues(object):
         try:
 
             with self.stdout(readable) as writer:
-                for value in Response.values_from_readable(self.extract, readable):
+                for value in Response.values_from_readable(self.extract,
+                                                           readable,
+                                                           self.label_funcs):
                     for line in value.text():
                         writer.write(line)
 
@@ -139,6 +161,7 @@ class WriteExtractedValues(object):
         return retval
 
 
+
 def main():
 
     logging.config.fileConfig(default_logging_conf,
@@ -147,9 +170,9 @@ def main():
     args = argparser.parse_args()
     extract = extractor_from_entry_points()
     if args.save_dir:
-        func = WriteExtractedValues(TeeStdOut, extract)
+        func = WriteExtractedValues(TeeStdOut, extract, args.label_funcs)
     else:
-        func = WriteExtractedValues(StdOut, extract)
+        func = WriteExtractedValues(StdOut, extract, args.label_funcs)
     Value.exit_on_exc = args.exit_on_exc
     Value.debug_on_exc = args.debug_on_exc
 
