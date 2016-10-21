@@ -19,6 +19,8 @@ def request_using_phantomjs(url, method, session=None, **kw):
 
     phantomjs = Popen(cmd, stdin=PIPE, stdout=PIPE)
 
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+
     proxies = kw.get('proxies', None)
     if proxies:
         # only 'http' proxies for now

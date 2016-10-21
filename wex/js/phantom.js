@@ -7,17 +7,19 @@
  */
 
 var system = require('system');
-var request = JSON.parse(system.stdin.read());
+var wexRequest = JSON.parse(system.stdin.read());
 var webpage = require('webpage');
 var page = webpage.create();
 var navigation = Array();
-var loglevel = request.loglevel || 30 ;
+var logLevel = wexRequest.loglevel || 30 ;
+
+navigation.push({"requests": Array(), "responses": {}});
 
 
 // update webpage settings
 
-for (var setting in (request.settings || {})) {
-    page.settings[setting] = request.settings[setting];
+for (var setting in (wexRequest.settings || {})) {
+    page.settings[setting] = wexRequest.settings[setting];
 }
 
 
@@ -29,30 +31,36 @@ function log(level, msg, prefix) {
 }
 
 function logDebug(msg, prefix) {
-    if (loglevel <= 10) {
+    if (logLevel <= 10) {
         log('DEBUG', msg, prefix);
     }
 }
 
 function logInfo(msg, prefix) {
-    if (loglevel <= 20) {
-        log('INFO', msg, prefix);
+    if (logLevel <= 20) {
+        log('INFO ', msg, prefix);
+    }
+}
+
+function logWarning(msg, prefix) {
+    if (logLevel <= 30) {
+        log('WARNI', msg, prefix);
     }
 }
 
 function logError(msg, prefix) {
-    if (loglevel <= 40) {
+    if (logLevel <= 40) {
         log('ERROR', msg, prefix);
     }
 }
 
 // set proxy if specified
-if (request.proxy) {
-    phantom.setProxy(request.proxy.hostname,
-                     request.proxy.port,
-                     request.proxy.type,
-                     request.proxy.username,
-                     request.proxy.password);
+if (wexRequest.proxy) {
+    phantom.setProxy(wexRequest.proxy.hostname,
+                     wexRequest.proxy.port,
+                     wexRequest.proxy.type,
+                     wexRequest.proxy.username,
+                     wexRequest.proxy.password);
 }
 
 
@@ -63,103 +71,127 @@ page.onConsoleMessage = function(msg, prefix) {
 };
 
 page.onError = function(msg, trace) {
-    logError(msg, " [phantomjs.onError] ");
+    logInfo(msg, " [phantomjs.onError] ");
 };
 
 page.onNavigationRequested = function(url, type, willNavigate, main) {
     if (main) {
         logDebug("onNavigationRequested to '" + url + "' (" + type + ")");
-        navigation.push({"url":url});
+        navigation.push({"url": url, "requests": Array(), "responses": {}});
     }
 };
 
 page.onResourceRequested = function(requestData, networkRequest) {
-    for (var i=navigation.length-1;i>=0;i--) {
-        if (requestData.url == navigation[i].url) {
-            navigation[i].id = requestData.id;
-            navigation[i].request = {
-                'method': requestData.method,
-                'requestTime': requestData.time,
-                'requestHeaders': requestData.headers
-            };
-            logDebug('onResourceRequested #' + requestData.id + " '" +
-                     requestData.url + "'");
-            break;
-       }
-    }
+    navigation[navigation.length-1].requests.push(requestData);
+    // logDebug('onResourceRequested #' + requestData.id + " '" + requestData.url + "'");
 };
 
 page.onResourceReceived = function(response) {
-
-    if (response.stage != "end") {
-        return;
-    }
-
-    for (var i=navigation.length-1;i>=0;i--) {
-        if (response.id == navigation[i].id) {
-            navigation[i].response = {
-                'url': response.url,
-                'time': response.time,
-                'headers': response.headers,
-                'redirectURL': response.redirectURL,
-                'status': response.status,
-                'statusText': response.statusText
-            };
-            logDebug("onResourceReceived #" + response.id + 
-                     " '" +
-                     response.url + "'");
-            break;
-        }
-    }
+    navigation[navigation.length-1].responses[response.id] = response;
+    // logDebug("onResourceReceived #" + response.id + " '" + response.url + "'");
 };
+
+
+//
+// Return primary response.
+// The primary response is the response to the first request
+// for most recent navigation.
+function getPrimaryResponse() {
+
+    var nav = navigation[navigation.length-1] ;
+    var request = null;
+    var response = null;
+
+    if (nav.requests.length > 0) {
+        request = nav.requests[0];
+    }
+
+    if (request !== null && request.id in nav.responses) {
+        response = nav.responses[request.id];
+    }
+
+    return response;
+}
 
 
 page.onLoadFinished = function(status) {
-    logDebug("onLoadFinished: " + status);
-    if (navigation[navigation.length-1].response) {
-        for (var i=0;i<(request.requires || []).length;i++){
-            module = require(request.requires[i]);
-            module.apply();
-        }
-        writeWexOut(navigation[navigation.length-1]);
-        phantom.exit(0);
-    } else {
-        logError("onLoadFinished with no response for '" +
-                 navigation[navigation.length-1].url + "'");
-        system.stdout.write("HTTP/1.1 502 PHANTOMJS ERROR\r\n\r\n");
-        phantom.exit(1);
+
+    var response = null ;
+
+    // XXX: How do we handle a 'requires' that wants to
+    //      perform another navigation?
+    for (var i=0;i<(wexRequest.requires || []).length;i++){
+        module = require(wexRequest.requires[i]);
+        module.apply();
     }
+
+    if (status == "success") {
+        response = getPrimaryResponse();
+    }
+
+    logDebug("onLoadFinished: " + status + " " + JSON.stringify(response));
+    writeWexOut(response);
+    logDebug("exit(0)");
+    phantom.exit(0);
 };
 
-function writeWexOut(nav) {
+function writeWexOut(response) {
+
     var wexout = [];
-    // we may find nav.response.status is null so record that as 502
-    wexout.push("HTTP/1.1 " +
-                (nav.response.status || 502) + " " +
-                nav.response.statusText);
-    for (var i=0; i<nav.response.headers.length; i++) {
-        var header = nav.response.headers[i];
-        wexout.push(header.name + ": " + header.value.replace(/\n/g, " "));
+    var status = 502 ;
+    var statusText = "PhantomJS error";
+
+    var currentUrl = page.evaluate(function() {
+            return window.location.href;
+              });
+
+    if (response !== null) {
+        status = response.status;
+        statusText = response.statusText;
+
+        if (response.url != page.url) {
+            logWarning("response.url " + JSON.stringify(response.url) +
+                       " is not same as page.url " + JSON.stringify(page.url) + " " + JSON.stringify(currentUrl)) ;
+        }
     }
-    var context = request.context || {};
+
+    wexout.push("HTTP/1.1 " + status + " " + statusText);
+    if (response !== null) {
+
+        for (var i=0; i<response.headers.length; i++) {
+            var header = response.headers[i];
+            wexout.push(header.name + ": " + header.value.replace(/\n/g, " "));
+        }
+    }
+
+    var context = wexRequest.context || {};
     for (var key in context) {
         if (context.hasOwnProperty(key)) {
             wexout.push("X-wex-context-" + key + ": " + context[key]);
         }
     }
-    wexout.push("X-wex-request-url: " + request.url);
-    wexout.push("X-wex-url: " + nav.response.url);
+
+    wexout.push("X-wex-request-url: " + wexRequest.url);
+    if (page.url) {
+        wexout.push("X-wex-url: " + page.url);
+    }
     wexout.push("");
     wexout.push(page.content);
     // previously I found PhantomJS will hang if I call write to stdout
     // multiple times (but only for large responses) so we join it all
     // in memory and then send it in one call.
     wexout = wexout.join("\r\n");
+
     system.stdout.write(wexout);
 }
 
-if (request.url.indexOf('#') >= 0) {
-    page.open(request.url.substring(0, request.url.indexOf('#')));
-} else {
-    page.open(request.url);
+
+function stripFragment(url) {
+    if (url.indexOf('#') >= 0) {
+        return url.substring(0, url.indexOf('#'));
+    }
+    return url ;
 }
+
+
+page.open(stripFragment(wexRequest.url));
