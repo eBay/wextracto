@@ -11,15 +11,28 @@ var wexRequest = JSON.parse(system.stdin.read());
 var webpage = require('webpage');
 var page = webpage.create();
 var navigation = Array();
+var requiredModules = Array();
+var moduleWaitCallbacks = Array();
 var logLevel = wexRequest.loglevel || 30 ;
+var globals = {};
+var exitTimeoutId = null ;
+
 
 navigation.push({"requests": Array(), "responses": {}});
 
 
+//
 // update webpage settings
 
 for (var setting in (wexRequest.settings || {})) {
     page.settings[setting] = wexRequest.settings[setting];
+}
+
+//
+// load the modules specified by the wexRequest
+
+for (var i=0; i < (wexRequest.requires || []).length; i++) {
+    requiredModules.push(require(wexRequest.requires[i]));
 }
 
 
@@ -78,17 +91,18 @@ page.onNavigationRequested = function(url, type, willNavigate, main) {
     if (main) {
         logDebug("onNavigationRequested to '" + url + "' (" + type + ")");
         navigation.push({"url": url, "requests": Array(), "responses": {}});
+        clearTimeout(exitTimeoutId);
     }
 };
 
 page.onResourceRequested = function(requestData, networkRequest) {
     navigation[navigation.length-1].requests.push(requestData);
-    // logDebug('onResourceRequested #' + requestData.id + " '" + requestData.url + "'");
+    //logDebug('onResourceRequested #' + requestData.id + " '" + requestData.url + "'");
 };
 
 page.onResourceReceived = function(response) {
     navigation[navigation.length-1].responses[response.id] = response;
-    // logDebug("onResourceReceived #" + response.id + " '" + response.url + "'");
+    //logDebug("onResourceReceived #" + response.id + " '" + response.url + "'");
 };
 
 
@@ -114,36 +128,79 @@ function getPrimaryResponse() {
 }
 
 
+function exitIfReady() {
+
+
+    keepWaiting = moduleWaitCallbacks.some(function(wait) {
+        try {
+            return wait();
+        }
+        catch (err) {
+            logError("error in " + wait + ": " + err);
+        }
+    });
+
+    if (keepWaiting) {
+        logDebug("keep waiting");
+        // try again later
+        exitTimeout = setTimeout(exitIfReady, 100);
+        return;
+    }
+
+    //
+    // Now it's time to go
+
+    response = getPrimaryResponse();
+    writeWexIn(response);
+    logInfo("phantom.exit(0) with: " + JSON.stringify(response));
+    phantom.exit(0);
+
+}
+
+function exitIfReadyAtDepth(depth) {
+    return function () {
+        if (navigation.length <= depth) {
+            exitIfReady();
+        } else {
+            logDebug('navigation since timeout started');
+        }
+    };
+}
+
 page.onLoadFinished = function(status) {
 
     var response = null ;
 
-    // XXX: How do we handle a 'requires' that wants to
-    //      perform another navigation?
-    for (var i=0;i<(wexRequest.requires || []).length;i++){
-        module = require(wexRequest.requires[i]);
-        module.apply();
+    if (status != "success") {
+        logError("exiting because onLoadFinished(" + status + ")") ;
+        phantom.exit(1);
+        return;
     }
 
-    if (status == "success") {
-        response = getPrimaryResponse();
-    }
+    requiredModules.map(function(module) {
+        try {
+            if (module.onLoadFinished) {
+                wait = module.onLoadFinished();
+                if (wait) {
+                    moduleWaitCallbacks.push(wait);
+                }
+            }
+        }
+        catch (err) {
+            logError("error in " + module + ": " + err);
+        }
+    });
 
-    logDebug("onLoadFinished: " + status + " " + JSON.stringify(response));
-    writeWexOut(response);
-    logDebug("exit(0)");
-    phantom.exit(0);
+    exitTimeout = setTimeout(exitIfReadyAtDepth(navigation.length), 100);
+
+    logDebug("onLoadFinished: " + status);
 };
 
-function writeWexOut(response) {
+function writeWexIn(response) {
 
-    var wexout = [];
+    var wexin = [];
     var status = 502 ;
     var statusText = "PhantomJS error";
-
-    var currentUrl = page.evaluate(function() {
-            return window.location.href;
-              });
 
     if (response !== null) {
         status = response.status;
@@ -151,38 +208,38 @@ function writeWexOut(response) {
 
         if (response.url != page.url) {
             logWarning("response.url " + JSON.stringify(response.url) +
-                       " is not same as page.url " + JSON.stringify(page.url) + " " + JSON.stringify(currentUrl)) ;
+                       " is not same as page.url " + JSON.stringify(page.url)) ;
         }
     }
 
-    wexout.push("HTTP/1.1 " + status + " " + statusText);
+    wexin.push("HTTP/1.1 " + status + " " + statusText);
     if (response !== null) {
 
         for (var i=0; i<response.headers.length; i++) {
             var header = response.headers[i];
-            wexout.push(header.name + ": " + header.value.replace(/\n/g, " "));
+            wexin.push(header.name + ": " + header.value.replace(/\n/g, " "));
         }
     }
 
     var context = wexRequest.context || {};
     for (var key in context) {
         if (context.hasOwnProperty(key)) {
-            wexout.push("X-wex-context-" + key + ": " + context[key]);
+            wexin.push("X-wex-context-" + key + ": " + context[key]);
         }
     }
 
-    wexout.push("X-wex-request-url: " + wexRequest.url);
+    wexin.push("X-wex-request-url: " + wexRequest.url);
     if (page.url) {
-        wexout.push("X-wex-url: " + page.url);
+        wexin.push("X-wex-url: " + page.url);
     }
-    wexout.push("");
-    wexout.push(page.content);
+    wexin.push("");
+    wexin.push(page.content);
     // previously I found PhantomJS will hang if I call write to stdout
     // multiple times (but only for large responses) so we join it all
     // in memory and then send it in one call.
-    wexout = wexout.join("\r\n");
+    wexin = wexin.join("\r\n");
 
-    system.stdout.write(wexout);
+    system.stdout.write(wexin);
 }
 
 
