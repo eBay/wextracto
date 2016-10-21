@@ -1,4 +1,4 @@
-exports.apply = function () {
+exports.onLoadFinished = function () {
     page.evaluate(
         function () {
             var index = 0;
