@@ -130,10 +130,12 @@ def readable_from_response(response, url, decode_content, context):
 
 def decode(src):
     content_encoding = src.headers.get('content-encoding', '')
+    content_subtype = src.headers.get_content_subtype()
     declared_as_gzip = (
         src.headers.get_content_subtype() == 'x-gzip' or
         content_encoding == 'x-gzip' or
-        content_encoding == 'gzip'
+        content_encoding == 'gzip' or
+        content_subtype == 'gzip'
     )
     has_gzip_magic = (src.magic_bytes[:2] == b'\037\213')
     if declared_as_gzip and has_gzip_magic:

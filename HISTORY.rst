@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.10.1 (2016-09-26)
++++++++++++++++++++
+
+  * Add --label argument for easy process-wide labelling
+
+
 0.9.6 (2016-09-09)
 ++++++++++++++++++
 
