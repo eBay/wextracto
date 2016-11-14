@@ -20,6 +20,7 @@ X-wex-request-url: {}
 
 """
 
+
 class StdOutForPhantomJS(object):
     """ Handle timeout by generateding a failure. """
 
@@ -94,6 +95,11 @@ def request_using_phantomjs(url, method, session=None, **kw):
     timeout_timer = Timer(timeout, terminate_phantomjs)
 
     settings = dict(default_settings)
+    for key in ['WEX_PHANTOMJS_USER_AGENT', 'WEX_USER_AGENT']:
+        if key in os.environ:
+            settings['userAgent'] = os.environ[key]
+            break
+
     settings.update(method.args.get('settings', {}))
     requires = []
     for require in method.args.get('requires', []):
