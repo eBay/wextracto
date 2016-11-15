@@ -7,17 +7,37 @@
  */
 
 var system = require('system');
-var request = JSON.parse(system.stdin.read());
+var wexRequest = JSON.parse(system.stdin.read());
 var webpage = require('webpage');
 var page = webpage.create();
 var navigation = Array();
-var loglevel = request.loglevel || 30 ;
+var requiredModules = Array();
+var moduleWaitCallbacks = Array();
+var logLevel = wexRequest.loglevel ;
+var globals = {};
+var waitMS = 100 ;
+var requestWait = wexRequest.requestWait || 500 ;
+var exitTimeoutId = null ;
 
 
+navigation.push({"requests": Array(), "responses": {}});
+
+if (logLevel === null || logLevel === undefined) {
+    logLevel = 30;
+}
+
+//
 // update webpage settings
 
-for (var setting in (request.settings || {})) {
-    page.settings[setting] = request.settings[setting];
+for (var setting in (wexRequest.settings || {})) {
+    page.settings[setting] = wexRequest.settings[setting];
+}
+
+//
+// load the modules specified by the wexRequest
+
+for (var i=0; i < (wexRequest.requires || []).length; i++) {
+    requiredModules.push(require(wexRequest.requires[i]));
 }
 
 
@@ -29,30 +49,36 @@ function log(level, msg, prefix) {
 }
 
 function logDebug(msg, prefix) {
-    if (loglevel <= 10) {
+    if (logLevel <= 10) {
         log('DEBUG', msg, prefix);
     }
 }
 
 function logInfo(msg, prefix) {
-    if (loglevel <= 20) {
-        log('INFO', msg, prefix);
+    if (logLevel <= 20) {
+        log('INFO ', msg, prefix);
+    }
+}
+
+function logWarning(msg, prefix) {
+    if (logLevel <= 30) {
+        log('WARNI', msg, prefix);
     }
 }
 
 function logError(msg, prefix) {
-    if (loglevel <= 40) {
+    if (logLevel <= 40) {
         log('ERROR', msg, prefix);
     }
 }
 
 // set proxy if specified
-if (request.proxy) {
-    phantom.setProxy(request.proxy.hostname,
-                     request.proxy.port,
-                     request.proxy.type,
-                     request.proxy.username,
-                     request.proxy.password);
+if (wexRequest.proxy) {
+    phantom.setProxy(wexRequest.proxy.hostname,
+                     wexRequest.proxy.port,
+                     wexRequest.proxy.type,
+                     wexRequest.proxy.username,
+                     wexRequest.proxy.password);
 }
 
 
@@ -63,103 +89,217 @@ page.onConsoleMessage = function(msg, prefix) {
 };
 
 page.onError = function(msg, trace) {
-    logError(msg, " [phantomjs.onError] ");
+    logInfo(msg, " [phantomjs.onError] ");
 };
 
 page.onNavigationRequested = function(url, type, willNavigate, main) {
     if (main) {
         logDebug("onNavigationRequested to '" + url + "' (" + type + ")");
-        navigation.push({"url":url});
+        navigation.push({"url": url, "requests": Array(), "responses": {}});
+        clearTimeout(exitTimeoutId);
     }
 };
 
 page.onResourceRequested = function(requestData, networkRequest) {
-    for (var i=navigation.length-1;i>=0;i--) {
-        if (requestData.url == navigation[i].url) {
-            navigation[i].id = requestData.id;
-            navigation[i].request = {
-                'method': requestData.method,
-                'requestTime': requestData.time,
-                'requestHeaders': requestData.headers
-            };
-            logDebug('onResourceRequested #' + requestData.id + " '" +
-                     requestData.url + "'");
-            break;
-       }
-    }
+    navigation[navigation.length-1].requests.push(requestData);
 };
 
 page.onResourceReceived = function(response) {
+    navigation[navigation.length-1].responses[response.id] = response;
+};
 
-    if (response.stage != "end") {
-        return;
-    }
+page.onResourceError = function(resourceError) {
+    logDebug("onResourceError: " + JSON.stringify(resourceError));
+    navigation[navigation.length-1].responses[resourceError.id] = resourceError;
+};
 
-    for (var i=navigation.length-1;i>=0;i--) {
-        if (response.id == navigation[i].id) {
-            navigation[i].response = {
-                'url': response.url,
-                'time': response.time,
-                'headers': response.headers,
-                'redirectURL': response.redirectURL,
-                'status': response.status,
-                'statusText': response.statusText
-            };
-            logDebug("onResourceReceived #" + response.id + 
-                     " '" +
-                     response.url + "'");
+
+//
+// Return primary response.
+// The primary response is the response to the first request
+// for most recent navigation.
+function getPrimaryResponse() {
+
+    var nav = navigation[navigation.length-1] ;
+    var request = null;
+    var response = null;
+
+    for (var i = 0 ; i < nav.requests.length; i++) {
+        if (nav.requests[i].url == page.url) {
+            request = nav.requests[i];
             break;
         }
     }
+
+    if (request === null && nav.requests.length > 0) {
+        request = nav.requests[0];
+    }
+
+    if (request !== null && request.id in nav.responses) {
+        response = nav.responses[request.id];
+    }
+
+    return response;
+}
+
+var numWaits = 0;
+
+function exitIfReady() {
+
+    var keepWaiting = false;
+
+    logDebug('exitIfReady()');
+    numWaits += 1;
+
+    var nav = navigation[navigation.length-1];
+    for (var i = 0 ; i < nav.requests.length; i++) {
+        var since = Date.now() - nav.requests[i].time.getTime();
+        if (!(nav.requests[i].id in nav.responses)) {
+            if (since <= requestWait) {
+                logDebug("keep waiting for request: " + nav.requests[i].url);
+                keepWaiting = true;
+                break;
+            }
+        }
+    }
+
+    if (!keepWaiting) {
+        // Ask the loaded modules if they need us to keep waiting
+        keepWaiting = moduleWaitCallbacks.some(function(keepWaitingCallback) {
+            try {
+                return keepWaitingCallback(numWaits * waitMS);
+            }
+            catch (err) {
+                logError("error in " + wait + ": " + err);
+            }
+        });
+    }
+
+    if (keepWaiting) {
+        logDebug("not ready to exit - try again in " + waitMS + "ms");
+        exitTimeoutId = setTimeout(exitIfReadyAtDepth(navigation.length), waitMS);
+        return;
+    }
+
+    //
+    // Now it's time to go
+
+    response = getPrimaryResponse();
+    writeWexIn(response);
+    logInfo("phantom.exit(0) with: " + JSON.stringify(response));
+    phantom.exit(0);
+
+}
+
+function exitIfReadyAtDepth(depth) {
+    return function () {
+        if (navigation.length <= depth) {
+            exitIfReady();
+        } else {
+            logDebug('navigation since timeout started');
+        }
+    };
+}
+
+page.onLoadStarted = function() {
+     var currentUrl = page.evaluate(function() {
+             return window.location.href;
+     });
+     var readyState = page.evaluate(function() {
+             return document.readyState;
+     });
+    logDebug('onLoadStarted: ' + currentUrl + ' ' + page.url + ' ' + readyState);
 };
 
+page.onUrlChanged = function(targetUrl) {
+      logDebug('onUrlChanged: ' + targetUrl);
+};
 
 page.onLoadFinished = function(status) {
-    logDebug("onLoadFinished: " + status);
-    if (navigation[navigation.length-1].response) {
-        for (var i=0;i<(request.requires || []).length;i++){
-            module = require(request.requires[i]);
-            module.apply();
-        }
-        writeWexOut(navigation[navigation.length-1]);
-        phantom.exit(0);
-    } else {
-        logError("onLoadFinished with no response for '" +
-                 navigation[navigation.length-1].url + "'");
-        system.stdout.write("HTTP/1.1 502 PHANTOMJS ERROR\r\n\r\n");
+
+    var response = null ;
+
+    //if (status != "success") {
+    if (!page.url) {
+        logError("exiting because onLoadFinished(" + status + ") " + page.url) ;
         phantom.exit(1);
+        return;
     }
+
+    requiredModules.map(function(module) {
+        try {
+            if (module.onLoadFinished) {
+                wait = module.onLoadFinished();
+                // logDebug("wait? " + wait + " " + module);
+                if (wait) {
+                    moduleWaitCallbacks.push(wait);
+                }
+            }
+        }
+        catch (err) {
+            logError("error in " + module + ": " + err);
+        }
+    });
+
+    clearTimeout(exitTimeoutId);
+    exitTimeoutId = setTimeout(exitIfReadyAtDepth(navigation.length), 0);
+
+    logDebug("onLoadFinished: " + status);
 };
 
-function writeWexOut(nav) {
-    var wexout = [];
-    // we may find nav.response.status is null so record that as 502
-    wexout.push("HTTP/1.1 " +
-                (nav.response.status || 502) + " " +
-                nav.response.statusText);
-    for (var i=0; i<nav.response.headers.length; i++) {
-        var header = nav.response.headers[i];
-        wexout.push(header.name + ": " + header.value.replace(/\n/g, " "));
-    }
-    var context = request.context || {};
-    for (var key in context) {
-        if (context.hasOwnProperty(key)) {
-            wexout.push("X-wex-context-" + key + ": " + context[key]);
+function writeWexIn(response) {
+
+    var wexin = [];
+    var status = 502 ;
+    var statusText = "PhantomJS error";
+
+    if (response !== null) {
+        status = response.status;
+        statusText = response.statusText;
+
+        if (response.url != page.url) {
+            logWarning("response.url " + JSON.stringify(response.url) +
+                       " is not same as page.url " + JSON.stringify(page.url)) ;
         }
     }
-    wexout.push("X-wex-request-url: " + request.url);
-    wexout.push("X-wex-url: " + nav.response.url);
-    wexout.push("");
-    wexout.push(page.content);
+
+    wexin.push("HTTP/1.1 " + status + " " + statusText);
+    if (response !== null) {
+
+        for (var i=0; i<response.headers.length; i++) {
+            var header = response.headers[i];
+            wexin.push(header.name + ": " + header.value.replace(/\n/g, " "));
+        }
+    }
+
+    var context = wexRequest.context || {};
+    for (var key in context) {
+        if (context.hasOwnProperty(key)) {
+            wexin.push("X-wex-context-" + key + ": " + context[key]);
+        }
+    }
+
+    wexin.push("X-wex-request-url: " + wexRequest.url);
+    if (page.url) {
+        wexin.push("X-wex-url: " + page.url);
+    }
+    wexin.push("");
+    wexin.push(page.content);
     // previously I found PhantomJS will hang if I call write to stdout
     // multiple times (but only for large responses) so we join it all
     // in memory and then send it in one call.
-    wexout = wexout.join("\r\n");
-    system.stdout.write(wexout);
+    wexin = wexin.join("\r\n");
+
+    system.stdout.write(wexin);
 }
 
-if (request.url.indexOf('#') >= 0) {
-    page.open(request.url.substring(0, request.url.indexOf('#')));
-} else {
-    page.open(request.url);
+
+function stripFragment(url) {
+    if (url.indexOf('#') >= 0) {
+        return url.substring(0, url.indexOf('#'));
+    }
+    return url ;
 }
+
+
+page.open(stripFragment(wexRequest.url));
