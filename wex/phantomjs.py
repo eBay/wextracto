@@ -32,10 +32,8 @@ class StdOutForPhantomJS(object):
 
     def readline(self, *args):
 
-
         if self.failure:
             return self.failure.readline(*args)
-
 
         line = self.stdout.readline(*args)
         if not line:

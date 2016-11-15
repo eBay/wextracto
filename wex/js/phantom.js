@@ -13,7 +13,7 @@ var page = webpage.create();
 var navigation = Array();
 var requiredModules = Array();
 var moduleWaitCallbacks = Array();
-var logLevel = wexRequest.loglevel || 30 ;
+var logLevel = wexRequest.loglevel ;
 var globals = {};
 var waitMS = 100 ;
 var requestWait = wexRequest.requestWait || 500 ;
@@ -22,6 +22,9 @@ var exitTimeoutId = null ;
 
 navigation.push({"requests": Array(), "responses": {}});
 
+if (logLevel === null || logLevel === undefined) {
+    logLevel = 30;
+}
 
 //
 // update webpage settings
