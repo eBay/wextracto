@@ -15,6 +15,8 @@ var requiredModules = Array();
 var moduleWaitCallbacks = Array();
 var logLevel = wexRequest.loglevel || 30 ;
 var globals = {};
+var waitMS = 100 ;
+var requestWait = wexRequest.requestWait || 500 ;
 var exitTimeoutId = null ;
 
 
@@ -97,12 +99,15 @@ page.onNavigationRequested = function(url, type, willNavigate, main) {
 
 page.onResourceRequested = function(requestData, networkRequest) {
     navigation[navigation.length-1].requests.push(requestData);
-    //logDebug('onResourceRequested #' + requestData.id + " '" + requestData.url + "'");
 };
 
 page.onResourceReceived = function(response) {
     navigation[navigation.length-1].responses[response.id] = response;
-    //logDebug("onResourceReceived #" + response.id + " '" + response.url + "'");
+};
+
+page.onResourceError = function(resourceError) {
+    logDebug("onResourceError: " + JSON.stringify(resourceError));
+    navigation[navigation.length-1].responses[resourceError.id] = resourceError;
 };
 
 
@@ -116,7 +121,14 @@ function getPrimaryResponse() {
     var request = null;
     var response = null;
 
-    if (nav.requests.length > 0) {
+    for (var i = 0 ; i < nav.requests.length; i++) {
+        if (nav.requests[i].url == page.url) {
+            request = nav.requests[i];
+            break;
+        }
+    }
+
+    if (request === null && nav.requests.length > 0) {
         request = nav.requests[0];
     }
 
@@ -127,23 +139,42 @@ function getPrimaryResponse() {
     return response;
 }
 
+var numWaits = 0;
 
 function exitIfReady() {
 
+    var keepWaiting = false;
 
-    keepWaiting = moduleWaitCallbacks.some(function(wait) {
-        try {
-            return wait();
+    logDebug('exitIfReady()');
+    numWaits += 1;
+
+    var nav = navigation[navigation.length-1];
+    for (var i = 0 ; i < nav.requests.length; i++) {
+        var since = Date.now() - nav.requests[i].time.getTime();
+        if (!(nav.requests[i].id in nav.responses)) {
+            if (since <= requestWait) {
+                logDebug("keep waiting for request: " + nav.requests[i].url);
+                keepWaiting = true;
+                break;
+            }
         }
-        catch (err) {
-            logError("error in " + wait + ": " + err);
-        }
-    });
+    }
+
+    if (!keepWaiting) {
+        // Ask the loaded modules if they need us to keep waiting
+        keepWaiting = moduleWaitCallbacks.some(function(keepWaitingCallback) {
+            try {
+                return keepWaitingCallback(numWaits * waitMS);
+            }
+            catch (err) {
+                logError("error in " + wait + ": " + err);
+            }
+        });
+    }
 
     if (keepWaiting) {
-        logDebug("keep waiting");
-        // try again later
-        exitTimeout = setTimeout(exitIfReady, 100);
+        logDebug("not ready to exit - try again in " + waitMS + "ms");
+        exitTimeoutId = setTimeout(exitIfReadyAtDepth(navigation.length), waitMS);
         return;
     }
 
@@ -167,12 +198,27 @@ function exitIfReadyAtDepth(depth) {
     };
 }
 
+page.onLoadStarted = function() {
+     var currentUrl = page.evaluate(function() {
+             return window.location.href;
+     });
+     var readyState = page.evaluate(function() {
+             return document.readyState;
+     });
+    logDebug('onLoadStarted: ' + currentUrl + ' ' + page.url + ' ' + readyState);
+};
+
+page.onUrlChanged = function(targetUrl) {
+      logDebug('onUrlChanged: ' + targetUrl);
+};
+
 page.onLoadFinished = function(status) {
 
     var response = null ;
 
-    if (status != "success") {
-        logError("exiting because onLoadFinished(" + status + ")") ;
+    //if (status != "success") {
+    if (!page.url) {
+        logError("exiting because onLoadFinished(" + status + ") " + page.url) ;
         phantom.exit(1);
         return;
     }
@@ -181,6 +227,7 @@ page.onLoadFinished = function(status) {
         try {
             if (module.onLoadFinished) {
                 wait = module.onLoadFinished();
+                // logDebug("wait? " + wait + " " + module);
                 if (wait) {
                     moduleWaitCallbacks.push(wait);
                 }
@@ -191,7 +238,8 @@ page.onLoadFinished = function(status) {
         }
     });
 
-    exitTimeout = setTimeout(exitIfReadyAtDepth(navigation.length), 100);
+    clearTimeout(exitTimeoutId);
+    exitTimeoutId = setTimeout(exitIfReadyAtDepth(navigation.length), 0);
 
     logDebug("onLoadFinished: " + status);
 };
