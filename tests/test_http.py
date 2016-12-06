@@ -1,5 +1,7 @@
 import json
 import codecs
+import requests.models
+from six import BytesIO
 from wex.url import URL
 from wex.response import Response
 from wex.http import decode
@@ -22,6 +24,55 @@ def get(url, **kw):
 def test_get():
     url = 'http://httpbin.org/headers'
     assert get(url) == [200]
+
+
+class Raw(BytesIO):
+    version = 11
+
+
+def get_monkeypatched(monkeypatch, url, **kw):
+
+    request_args = []
+
+    def request(session, *args, **request_kwargs):
+        request_args.append((args, request_kwargs))
+        response = requests.models.Response()
+        response.raw = Raw()
+        return response
+
+    monkeypatch.setattr('requests.sessions.Session.request', request)
+
+    for readable in URL(url).get(**kw):
+        pass
+
+    return request_args
+
+
+def test_get_with_timeout(monkeypatch):
+    url = 'http://www.example.net'
+    timeout = 3.0
+    args = get_monkeypatched(monkeypatch, url, timeout=timeout)
+    assert len(args) == 1
+    assert args[0][0] == ('get', url)
+    assert args[0][1].get('timeout') == timeout
+
+
+def test_get_with_timeout_tuple(monkeypatch):
+    url = 'http://www.example.net'
+    timeout = (3.0, 4.0)
+    args = get_monkeypatched(monkeypatch, url, timeout=timeout)
+    assert len(args) == 1
+    assert args[0][0] == ('get', url)
+    assert args[0][1].get('timeout') == timeout
+
+
+def test_get_with_timeout_in_url(monkeypatch):
+    url = 'http://www.example.net#{"method":{"get":{"timeout":[3,4]}}}'
+    timeout = (3, 4)
+    args = get_monkeypatched(monkeypatch, url)
+    assert len(args) == 1
+    assert args[0][0] == ('get', url)
+    assert args[0][1].get('timeout') == timeout
 
 
 def test_urllib3_issue_709_gzip():
