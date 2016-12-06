@@ -6,7 +6,7 @@ from six.moves.urllib_parse import urljoin
 from lxml.html import _nons, HTMLParser
 from .py2compat import parse_headers
 from .iterable import one
-from .http import timeout, readable_from_response, merge_setting
+from .http import DEFAULT_TIMEOUT, readable_from_response, merge_setting
 from .etree import get_base_url
 from .response import Response
 
@@ -131,7 +131,7 @@ def submit_form(url, method, session=None, **kw):
         headers=headers,
         params=method.args.get('params', None),
         proxies=proxies,
-        timeout=timeout,
+        timeout=DEFAULT_TIMEOUT,
         auth=auth,
     )
     readable = ParserReadable.from_response(response, url,
@@ -143,7 +143,7 @@ def submit_form(url, method, session=None, **kw):
                                           response.request,
                                           proxies=proxies,
                                           stream=True,
-                                          timeout=timeout)
+                                          timeout=DEFAULT_TIMEOUT)
 
     for response in redirects:
         readable = ParserReadable.from_response(response, url,
@@ -191,7 +191,7 @@ def submit_form(url, method, session=None, **kw):
         data=data,
         headers=headers,
         proxies=proxies,
-        timeout=timeout,
+        timeout=DEFAULT_TIMEOUT,
     )
     yield readable_from_response(response, url,
                                  decode_content=decode_content,
@@ -201,7 +201,7 @@ def submit_form(url, method, session=None, **kw):
                                           response.request,
                                           proxies=proxies,
                                           stream=True,
-                                          timeout=timeout)
+                                          timeout=DEFAULT_TIMEOUT)
     for redirect in redirects:
         yield readable_from_response(redirect, url,
                                      decode_content=decode_content,

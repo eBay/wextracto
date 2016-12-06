@@ -14,7 +14,7 @@ from .http_decoder import DeflateDecoder, GzipDecoder
 
 GZIP_MAGIC = b'\x1f\x8b'
 CRLF = '\r\n'
-timeout = 30.0
+DEFAULT_TIMEOUT = 30.0
 
 
 def remove_url_params(url, params):
@@ -44,6 +44,12 @@ def request(url, method, session=None, **kw):
     context = kw.get('context', {})
     auth = merge_setting(method.args.get('auth'), kw.get('auth'))
     params = merge_setting(method.args.get('params'), kw.get('params'))
+    timeout = merge_setting(method.args.get('timeout'),
+                            kw.get('timeout', DEFAULT_TIMEOUT))
+    # requests will not accept a list, but we might get this from
+    # our JSON method fragment dict so lets convert it to a tuple
+    if isinstance(timeout, list):
+        timeout = tuple(timeout)
 
     response = session.request(
         method.name,
