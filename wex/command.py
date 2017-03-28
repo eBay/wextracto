@@ -62,6 +62,13 @@ argparser.add_argument(
     help="function to generate a label",
 )
 
+argparser.add_argument(
+    '--log-debug',
+    action='append',
+    default=[],
+    help="set debug level on this logger"
+)
+
 save_group = argparser.add_argument_group("Save extraction input and output")
 
 save_excl_group = save_group.add_mutually_exclusive_group()
@@ -168,6 +175,10 @@ def main():
                               disable_existing_loggers=False)
 
     args = argparser.parse_args()
+
+    for logger_name in args.log_debug:
+        logging.getLogger(logger_name).setLevel(logging.DEBUG)
+
     extract = extractor_from_entry_points()
     if args.save_dir:
         func = WriteExtractedValues(TeeStdOut, extract, args.label_funcs)
