@@ -20,7 +20,7 @@ var requestWait = wexRequest.requestWait || 500 ;
 var exitTimeoutId = null ;
 
 
-navigation.push({"requests": Array(), "responses": {}});
+navigation.push({"requests": Array(), "responses": {}, "started": false});
 
 if (logLevel === null || logLevel === undefined) {
     logLevel = 30;
@@ -120,12 +120,27 @@ page.onResourceError = function(resourceError) {
 // for most recent navigation.
 function getPrimaryResponse() {
 
-    var nav = navigation[navigation.length-1] ;
+    var i;
+    var nav = null;
+    var pageUrl = page.url && stripFragment(page.url);
+
+    // Work backwards until we find navigation where onLoadStarted happened
+    for (i = navigation.length-1; i >= 0; i--) {
+        if (navigation[i].started) {
+            nav = navigation[i];
+            break;
+        }
+    }
+
+    if (!nav) {
+        return null;
+    }
+
     var request = null;
     var response = null;
 
-    for (var i = 0 ; i < nav.requests.length; i++) {
-        if (nav.requests[i].url == page.url) {
+    for (i = 0 ; i < nav.requests.length; i++) {
+        if (nav.requests[i].url == pageUrl) {
             request = nav.requests[i];
             break;
         }
@@ -186,7 +201,7 @@ function exitIfReady() {
 
     response = getPrimaryResponse();
     writeWexIn(response);
-    logInfo("phantom.exit(0) with: " + JSON.stringify(response));
+    logDebug("phantom.exit(0) with: " + JSON.stringify(response));
     phantom.exit(0);
 
 }
@@ -209,6 +224,7 @@ page.onLoadStarted = function() {
              return document.readyState;
      });
     logDebug('onLoadStarted: ' + currentUrl + ' ' + page.url + ' ' + readyState);
+    navigation[navigation.length-1].started = true;
 };
 
 page.onUrlChanged = function(targetUrl) {
@@ -257,9 +273,11 @@ function writeWexIn(response) {
         status = response.status;
         statusText = response.statusText;
 
-        if (response.url != page.url) {
+        var pageUrl = page.url && stripFragment(page.url);
+
+        if (response.url != pageUrl) {
             logWarning("response.url " + JSON.stringify(response.url) +
-                       " is not same as page.url " + JSON.stringify(page.url)) ;
+                       " is not same as page.url " + JSON.stringify(pageUrl)) ;
         }
     }
 
