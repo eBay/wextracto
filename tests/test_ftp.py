@@ -4,7 +4,7 @@ url = 'ftp://anonymous:me@speedtest.tele2.net/1KB.zip'
 
 expected_lines = [
     b"FTP/1.0 200 OK\r\n",
-    b"X-wex-url: " + url + "\r\n",
+    b"X-wex-url: " + url.encode('utf-8') + b"\r\n",
     b"\r\n",
 ]
 expected_content = b''.join(expected_lines)
