@@ -1,14 +1,13 @@
 from wex.url import URL
 
+url = 'ftp://anonymous:me@speedtest.tele2.net/1KB.zip'
+
 expected_lines = [
     b"FTP/1.0 200 OK\r\n",
-    b"X-wex-url: ftp://anonymous:me@ftp.kernel.org/pub/site/README\r\n",
+    b"X-wex-url: " + url + "\r\n",
     b"\r\n",
-    b"This directory contains files related to the operation of the\n",
 ]
 expected_content = b''.join(expected_lines)
-
-url = 'ftp://anonymous:me@ftp.kernel.org/pub/site/README'
 
 
 def test_ftp_read():
@@ -25,6 +24,7 @@ def test_ftp_read():
 def test_ftp_readline():
     readables = list(URL(url).get())
     assert len(readables) == 1
+    n = 3
     r0 = readables[0]
-    first_four_lines = [r0.readline() for i in range(4)]
-    assert first_four_lines == expected_lines[:4]
+    first_few_lines = [r0.readline() for i in range(n)]
+    assert first_few_lines == expected_lines[:n]
