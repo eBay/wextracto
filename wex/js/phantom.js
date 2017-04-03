@@ -92,6 +92,19 @@ page.onError = function(msg, trace) {
     logInfo(msg, " [phantomjs.onError] ");
 };
 
+page.onInitialized = function() {
+    requiredModules.map(function(module) {
+        try {
+            if (module.onInitialized) {
+                module.onInitialized();
+            }
+        }
+        catch (err) {
+            logError("error in " + module + ": " + err);
+        }
+    });
+};
+
 page.onNavigationRequested = function(url, type, willNavigate, main) {
     if (main) {
         logDebug("onNavigationRequested to '" + url + "' (" + type + ")");
