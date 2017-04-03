@@ -3,6 +3,13 @@
 Release History
 ---------------
 
+
+0.12.0 (2017-04-03)
++++++++++++++++++++
+
+  * Support onInitialized in PhantomJS required modules
+
+
 0.10.1 (2016-09-26)
 +++++++++++++++++++
 
