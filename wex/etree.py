@@ -71,7 +71,7 @@ function_namespace = FunctionNamespace(None)
 _html_text_nodes = XPath(
     'descendant-or-self::node()' +
     '[not(local-name()) or not(text())]' +
-    '[not(ancestor::script or ancestor::style)]'
+    '[not(ancestor::script or ancestor::style or ancestor::noscript)]'
 )
 
 
