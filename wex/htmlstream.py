@@ -116,14 +116,14 @@ class HTMLStream(object):
 
         ranked_encodings = self.ranked_encodings()
 
+        if 'utf-8' not in ranked_encodings:
+            info = codecs.lookup('utf-8')
+            yield info.name, info.incrementaldecoder()
+
         for encoding in ranked_encodings:
             info = codecs.lookup(encoding)
             decoder = info.incrementaldecoder()
             yield info.name, decoder
-
-        if 'utf-8' not in ranked_encodings:
-            info = codecs.lookup('utf-8')
-            yield info.name, info.incrementaldecoder()
 
         # character set detection could go here
         if ranked_encodings:
