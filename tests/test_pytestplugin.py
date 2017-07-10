@@ -1,11 +1,13 @@
 from io import FileIO
 from six import next
+import pytest
 from pkg_resources import resource_filename, working_set
 from wex.readable import EXT_WEXIN
 from wex.output import EXT_WEXOUT
 from wex import pytestplugin
 
-def pytest_funcarg__parent(request):
+@pytest.fixture
+def parent(request):
     return request.session
 
 response = b"""HTTP/1.1 200 OK\r
