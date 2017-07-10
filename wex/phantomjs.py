@@ -100,7 +100,8 @@ def request_using_phantomjs(url, method, session=None, **kw):
     requires = []
     for require in method.args.get('requires', []):
         if isinstance(require, (tuple, list)):
-            stem, _ = os.path.splitext(resource_filename(*require))
+            filename = os.path.abspath(resource_filename(*require))
+            stem, ext = os.path.splitext(filename)
             requires.append(stem)
         else:
             requires.append(require)
