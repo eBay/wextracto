@@ -51,26 +51,27 @@ encoding_substitutions = {
 }
 
 #
-# Take 10K random strings of 8 bytes each and
+# Take 100K random strings of 8 bytes each and
 # see how many give you UnicodeDecode errors.
 # Anything that isn't in the table gave 0.
 ranking = {
-    'cp1251': 3058,
-    'iso8859-7': 9059,
-    'cp1250': 14390,
-    'cp1252': 14429,
-    'cp1254': 19754,
-    'iso8859-11': 22290,
-    'tis-620': 24760,
-    'cp1255': 52721,
-    'shift_jis': 71873,
-    'gbk': 74930,
-    'big5': 90760,
-    'euc_kr': 96158,
-    'gb2312': 96714,
-    'euc_jp': 96995,
-    'utf-8': 99095,
-    'ascii': 99627,
+    "ascii": 99599,
+    "big5": 90718,
+    "cp1250": 14594,
+    "cp1251": 3089,
+    "cp1252": 14586,
+    "cp1254": 19806,
+    "cp1255": 52811,
+    "euc_jp": 97039,
+    "euc_kr": 96188,
+    "gb2312": 96718,
+    "gbk": 75291,
+    "iso8859-11": 22608,
+    "iso8859-7": 9049,
+    "shift_jis": 72043,
+    "tis-620": 25072,
+    "utf-16-le": 11923,
+    "utf-8": 99081
 }
 
 
@@ -103,7 +104,7 @@ class HTMLStream(object):
             except LookupError:
                 return None
 
-        encodings = (encoding for label, encoding in self.declared_encodings)
+        encodings = [encoding for label, encoding in self.declared_encodings]
         normalized = set(filter(None, map(lookup, encodings)))
 
         def key(enc):
@@ -116,20 +117,20 @@ class HTMLStream(object):
 
         ranked_encodings = self.ranked_encodings()
 
-        if 'utf-8' not in ranked_encodings:
-            info = codecs.lookup('utf-8')
-            yield info.name, info.incrementaldecoder()
-
-        for encoding in ranked_encodings:
-            info = codecs.lookup(encoding)
-            decoder = info.incrementaldecoder()
-            yield info.name, decoder
-
         # character set detection could go here
         if ranked_encodings:
             fallback = codecs.lookup(ranked_encodings[0])
         else:
             fallback = codecs.lookup('cp1252')
+
+        # ensure that utf-8 is tried first (as long as no utf is declared)
+        if not any(enc.startswith('utf-') for enc in ranked_encodings):
+            ranked_encodings = ['utf-8'] + ranked_encodings
+
+        for encoding in ranked_encodings:
+            info = codecs.lookup(encoding)
+            decoder = info.incrementaldecoder()
+            yield info.name, decoder
 
         # for our fallback we 'replace' errors
         yield fallback.name, fallback.incrementaldecoder('replace')
@@ -226,3 +227,26 @@ class HTMLEncodings(object):
 
     def close(self):
         pass
+
+
+if __name__ == '__main__':
+
+    import os
+    import sys
+    import json
+
+    new_ranking = {key: 0 for key in ranking}
+
+    for i in range(100000):
+        word = os.urandom(8)
+        for enc in new_ranking:
+            try:
+                word.decode(enc)
+            except UnicodeDecodeError:
+                new_ranking[enc] += 1
+
+    json.dump(new_ranking,
+              sys.stdout,
+              sort_keys=True,
+              indent=4,
+              separators=(',', ': '))
