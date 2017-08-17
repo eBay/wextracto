@@ -100,6 +100,13 @@ def test_extract_from_readable():
     assert values == [(b'hello',)]
 
 
+def test_undecodable_url():
+    readable = resource_stream(__name__, 'fixtures/undecodable_url.wexin_')
+    response = Response.from_readable(readable)
+    assert response.url == 'https://www.example.net/'
+    assert response.request_url == 'https://www.example.net/#{"method":"get"}'
+
+
 def test_warc_response():
     readable = resource_stream(__name__, 'fixtures/warc_response')
     response = Response.from_readable(readable)

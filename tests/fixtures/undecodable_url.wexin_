@@ -1,0 +1,7 @@
+HTTP/1.0 200 OK
+Content-type: text/html;charset=UTF-8
+X-wex-url: https://www.example.net/Ã
+X-wex-request-url: https://www.example.net/Ã#{"method":"get"}
+
+<!doctype html>
+<html><body><h1>Ooops</h1></body></html>

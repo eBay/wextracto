@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, print_function, absolute_import
 import os
 import itertools
+import logging
 from tempfile import SpooledTemporaryFile as SpooledTemporaryFile_
 from shutil import copyfileobj
 from six import PY2, next
@@ -94,11 +95,24 @@ class Response(addinfourl):
         if request_url is None and warc_headers:
             request_url = warc_headers.get('WARC-target-uri')
         url = headers.get('X-wex-url', request_url)
+
         if PY2:
             if request_url is not None:
-                request_url = request_url.decode('utf-8')
+                try:
+                    request_url = request_url.decode('utf-8')
+                except UnicodeDecodeError:
+                    log = logging.getLogger(__name__)
+                    log.warning("undecodable request url %r", request_url)
+                    request_url = request_url.decode('utf-8', errors='ignore')
+
             if url is not None:
-                url = url.decode('utf-8')
+                try:
+                    url = url.decode('utf-8')
+                except UnicodeDecodeError:
+                    log = logging.getLogger(__name__)
+                    log.warning("undecodable url %r", url)
+                    url = url.decode('utf-8', errors='ignore')
+
         magic_bytes, content = cls.content_file(readable, headers)
         return Response(content,
                         headers,
