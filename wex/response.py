@@ -103,7 +103,7 @@ class Response(addinfourl):
                 except UnicodeDecodeError:
                     log = logging.getLogger(__name__)
                     log.warning("undecodable request url %r", request_url)
-                    request_url = request_url.decode('utf-8', errors='ignore')
+                    request_url = request_url.decode('iso-8859-1')
 
             if url is not None:
                 try:
@@ -111,7 +111,7 @@ class Response(addinfourl):
                 except UnicodeDecodeError:
                     log = logging.getLogger(__name__)
                     log.warning("undecodable url %r", url)
-                    url = url.decode('utf-8', errors='ignore')
+                    url = url.decode('iso-8859-1')
 
         magic_bytes, content = cls.content_file(readable, headers)
         return Response(content,

@@ -1,3 +1,5 @@
+# coding: utf-8
+from __future__ import unicode_literals
 import codecs
 import pytest
 from pkg_resources import resource_stream
@@ -103,9 +105,8 @@ def test_extract_from_readable():
 def test_undecodable_url():
     readable = resource_stream(__name__, 'fixtures/undecodable_url.wexin_')
     response = Response.from_readable(readable)
-    assert response.url.startswith('https://www.example.net/')
-    assert response.request_url.startswith('https://www.example.net/')
-    assert response.request_url.endswith('#{"method":"get"}')
+    assert response.url == 'https://www.example.net/Ã'
+    assert response.request_url == 'https://www.example.net/Ã#{"method":"get"}'
 
 
 def test_warc_response():
