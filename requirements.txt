@@ -6,3 +6,4 @@ pytest-cov
 ipdb
 sphinx-rtd-theme==0.1.6
 wheel>=0.2.1
+tox
