@@ -103,8 +103,9 @@ def test_extract_from_readable():
 def test_undecodable_url():
     readable = resource_stream(__name__, 'fixtures/undecodable_url.wexin_')
     response = Response.from_readable(readable)
-    assert response.url == 'https://www.example.net/'
-    assert response.request_url == 'https://www.example.net/#{"method":"get"}'
+    assert response.url.startswith('https://www.example.net/')
+    assert response.request_url.startswith('https://www.example.net/')
+    assert response.request_url.endswith('#{"method":"get"}')
 
 
 def test_warc_response():

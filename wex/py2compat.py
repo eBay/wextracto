@@ -93,13 +93,15 @@ else:
             line = fp.readline(_MAXLINE + 1)
             if len(line) > _MAXLINE:
                 raise http.client.LineTooLong("header line")
-            headers.append(line)
+            try:
+                headers.append(line.decode('utf-8'))
+            except UnicodeDecodeError:
+                headers.append(line.decode('iso-8859-1'))
             if len(headers) > _MAXHEADERS:
                 raise http.client.HTTPException("got more than %d headers" % _MAXHEADERS)
             if line in (b'\r\n', b'\n', b''):
                 break
-        # hstring = b''.join(headers).decode('iso-8859-1')
-        hstring = b''.join(headers).decode('utf-8')
+        hstring = ''.join(headers)
         return email.parser.Parser(_class=_class).parsestr(hstring)
 
 
