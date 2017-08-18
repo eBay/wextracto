@@ -28,7 +28,7 @@ setup(
         'cssselect',
         'publicsuffix>=1.1',
     ],
-    classifiers=(
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Natural Language :: English',
@@ -37,7 +37,7 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
-    ),
+    ],
     entry_points="""
         [console_scripts]
         wex = wex.command:main

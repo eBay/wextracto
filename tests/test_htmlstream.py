@@ -57,7 +57,15 @@ def test_htmlstream_meta_charset():
     stream = stream_from_fixture('shift-jis-meta-charset')
     assert stream.declared_encodings == [('http-content-type', 'ISO-8859-1'),
                                          ('meta-charset', 'shift-jis')]
+
+    with pytest.raises(UnicodeDecodeError):
+        text = stream.read()
+    assert stream.encoding == 'utf-8'
+
+    stream.next_encoding()
     text = stream.read()
+    assert stream.encoding == 'shift_jis'
+
     assert isinstance(text, text_type)
     assert text == '<meta charset="shift-jis">\n<p>巨<p>\n'
 
@@ -66,7 +74,15 @@ def test_htmlstream_meta_http_equiv():
     stream = stream_from_fixture('shift-jis-meta-http-equiv')
     assert stream.declared_encodings == [('http-content-type', 'ISO-8859-1'),
                                          ('meta-content-type', 'shift-jis')]
+
+    with pytest.raises(UnicodeDecodeError):
+        text = stream.read()
+    assert stream.encoding == 'utf-8'
+
+    stream.next_encoding()
     text = stream.read()
+    assert stream.encoding == 'shift_jis'
+
     assert isinstance(text, text_type)
     assert text == '<meta http-equiv="content-type" content="text/html;charset=shift-jis">\n<p>巨<p>\n'  # flake8: noqa
 
@@ -75,8 +91,14 @@ def test_htmlstream_http_content_type():
     stream = stream_from_fixture('shift-jis-http-content-type')
     assert stream.declared_encodings == [('http-content-type', 'SHIFT-JIS'),
                                          ('meta-charset', 'iso-8859-1')]
+
+    with pytest.raises(UnicodeDecodeError):
+        text = stream.read()
+    assert stream.encoding == 'utf-8'
+
+    stream.next_encoding()
     text = stream.read()
-    assert isinstance(text, text_type)
+    assert stream.encoding == 'shift_jis'
     assert text == '<meta charset="iso-8859-1">\n<p>巨<p>\n'
 
 

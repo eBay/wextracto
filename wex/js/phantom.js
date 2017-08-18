@@ -82,7 +82,11 @@ if (wexRequest.proxy) {
 }
 
 
-// webpage callbacks
+// callbacks
+
+phantom.onError = function(msg, trace) {
+    logInfo(msg, " [phantomjs.onError(phantom)] ");
+};
 
 page.onConsoleMessage = function(msg, prefix) {
     logDebug(msg, " [phantomjs.onConsoleMessage] ");
@@ -283,8 +287,9 @@ function writeWexIn(response) {
     var statusText = "PhantomJS error";
 
     if (response !== null) {
-        status = response.status;
-        statusText = response.statusText;
+        // sometimes response has null status/statusText
+        status = response.status || status;
+        statusText = response.statusText || statusText;
 
         var pageUrl = page.url && stripFragment(page.url);
 

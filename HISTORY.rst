@@ -3,6 +3,18 @@
 Release History
 ---------------
 
+0.14.1 (2017-08-17)
++++++++++++++++++++
+
+  * Fix errors in PhantomJS responses
+  * Handle non utf-8 urls
+
+
+0.14.0 (2017-07-10)
++++++++++++++++++++
+
+  * Ensure utf-8 is tried first even if not declared
+
 
 0.12.0 (2017-04-03)
 +++++++++++++++++++
