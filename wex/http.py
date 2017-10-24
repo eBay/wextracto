@@ -84,7 +84,7 @@ def readable_from_response(response, url, decode_content, context):
     headers = io.TextIOWrapper(io.BytesIO(), encoding='utf-8', newline='\n')
 
     protocol = 'HTTP'
-    version = '{:.1f}'.format(response.raw.version / 10.0)
+    version = '{0:.1f}'.format(response.raw.version / 10.0)
     code = response.status_code
     reason = response.reason
     status_line = format_status_line(protocol, version, code, reason)
@@ -130,8 +130,10 @@ def readable_from_response(response, url, decode_content, context):
         content = DeflateDecoder(response.raw)
     else:
         content = response.raw
-
-    return ChainedReadable(headers.detach(), content)
+    headers_buffer = headers.buffer
+    headers.buffer = None
+    return ChainedReadable(headers_buffer, content)
+    #return ChainedReadable(headers.detach(), content)
 
 
 def decode(src):
@@ -150,5 +152,5 @@ def decode(src):
     return src
 
 
-format_status_line = '{}/{} {} {}\r\n'.format
-format_header = '{}: {}\r\n'.format
+format_status_line = '{0}/{1} {2} {3}\r\n'.format
+format_header = '{0}: {1}\r\n'.format
