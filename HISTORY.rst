@@ -3,6 +3,12 @@
 Release History
 ---------------
 
+0.15.0 (2017-10-24)
++++++++++++++++++++
+
+  * Add warc_protocol, warc_version, warc_headers to wex response
+
+
 0.14.1 (2017-08-17)
 +++++++++++++++++++
 
