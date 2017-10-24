@@ -316,10 +316,6 @@ function writeWexIn(response) {
     }
 
     wexin.push("X-wex-request-url: " + wexRequest.url);
-    if (wexRequest.proxy) {
-        wexin.push('X-wex-context-proxy-http: ' + wexRequest.proxy.type + '://' + wexRequest.proxy.username + ':' + wexRequest.proxy.password + '@' + wexRequest.proxy.hostname + ':' + wexRequest.proxy.port);
-    }
-
     if (page.url) {
         wexin.push("X-wex-url: " + page.url);
     }
