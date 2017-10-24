@@ -57,7 +57,7 @@ class Method(object):
 
     @property
     def group(self):
-        return 'wex.method.{}'.format(self.scheme)
+        return 'wex.method.{0}'.format(self.scheme)
 
     def get(self, url, **kw):
         """ Get responses for 'url'. """

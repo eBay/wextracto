@@ -235,7 +235,7 @@ if __name__ == '__main__':
     import sys
     import json
 
-    new_ranking = {key: 0 for key in ranking}
+    new_ranking = dict((key, 0) for key in ranking)
 
     for i in range(100000):
         word = os.urandom(8)
