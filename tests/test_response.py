@@ -116,6 +116,6 @@ def test_warc_response():
     readable = resource_stream(__name__, 'fixtures/warc_response')
     response = Response.from_readable(readable)
     assert response.url == 'http://httpbin.org/get?this=that'
-    assert response.warc_protocol == 'WARC'
+    assert response.warc_protocol == b'WARC'
     assert response.warc_version == (1, 0)
     assert response.warc_headers.get('warc-type') == 'response'
