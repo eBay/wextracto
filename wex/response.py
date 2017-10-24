@@ -50,6 +50,9 @@ class Response(addinfourl):
         self.version = kw.pop('version', None)
         self.reason = kw.pop('reason', None)
         self.magic_bytes = kw.pop('magic_bytes', None)
+        self.warc_protocol = kw.pop('warc_protocol', None)
+        self.warc_version = kw.pop('warc_version', None)
+        self.warc_headers = kw.pop('warc_headers', None)
         if kw:
             raise ValueError("unexpected keyword arguments %r" % kw.keys())
 
@@ -86,6 +89,8 @@ class Response(addinfourl):
 
         else:
 
+            warc_protocol = None
+            warc_version = None
             warc_headers = None
 
         protocol, version, code, reason = cls.parse_status_line(readable,
@@ -122,7 +127,10 @@ class Response(addinfourl):
                         version=version,
                         reason=reason.decode('utf-8'),
                         request_url=request_url,
-                        magic_bytes=magic_bytes)
+                        magic_bytes=magic_bytes,
+                        warc_protocol=warc_protocol,
+                        warc_version=warc_version,
+                        warc_headers=warc_headers)
 
     @staticmethod
     def parse_warc_version(readable, status_line):
