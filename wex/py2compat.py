@@ -25,6 +25,17 @@ if six.PY2:
     def parse_headers(fp):
         return HTTPMessage(fp, 0)
 
+    # Python 2.6 does not have a detach on io.TextIOWrapper, so let's add one
+    import io
+    if not hasattr(io.TextIOWrapper, 'detach'):
+
+        def detach(self):
+            self_buffer = self.buffer
+            self.buffer = None
+            return self_buffer
+
+        io.TextIOWrapper.detach = detach
+
     def urlquote(name, *args, **kwargs):
         if isinstance(name, unicode):
             name = name.encode('utf-8')

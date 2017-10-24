@@ -130,10 +130,8 @@ def readable_from_response(response, url, decode_content, context):
         content = DeflateDecoder(response.raw)
     else:
         content = response.raw
-    headers_buffer = headers.buffer
-    headers.buffer = None
-    return ChainedReadable(headers_buffer, content)
-    #return ChainedReadable(headers.detach(), content)
+
+    return ChainedReadable(headers.detach(), content)
 
 
 def decode(src):
